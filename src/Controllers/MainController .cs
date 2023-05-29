@@ -1,7 +1,15 @@
+using System.Net.WebSockets;
+using System.Text;
 using Microsoft.AspNetCore.Mvc;
+using PartyMusic.Models.Core;
 using YoutubeExplode;
-using Vlc.DotNet.Core;
+// using Vlc.DotNet.Core;
 using Vlc.DotNet.Core.Interops;
+using YoutubeExplode.Common;
+using System.Linq;
+using YoutubeExplode.Search;
+using System.IO;
+using System.Text.RegularExpressions;
 
 namespace PartyMusic.Controllers;
 
@@ -9,12 +17,77 @@ namespace PartyMusic.Controllers;
 [Route("/api/[controller]")]
 public class MainController : ControllerBase
 {
-    // const string VLC_PATH = @"C:\Program Files\VideoLAN\VLC";
-    const string VLC_PATH = @"/usr/lib/vlc";
+    private readonly ILogger<MainController> _logger;
+    const int MAX_WS_RECEIVE_BYTES_COUNT = 100;
 
-    private readonly ILogger<WeatherForecastController> _logger;
+    private static readonly Regex videoFromUrlRegex =
+        new (@"(youtube\.com\/watch.*([\?\&]v\=(?<videoId>[a-zA-Z0-9]*)))|(youtu\.be\/(?<videoId2>[a-zA-Z0-9]*))", RegexOptions.Compiled);
 
-    public MainController(ILogger<WeatherForecastController> logger)
+    private WebSocketConnection? myWSConnection = null;
+    private static WebSocketConnection? playerWSConnection = null;
+    private static List<WebSocketConnection> wsConnections = new();
+    
+    
+    [HttpGet("/ws")]
+    public async Task GetWs(string? isPlayer)
+    {
+        if (!HttpContext.WebSockets.IsWebSocketRequest)
+        {
+            HttpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
+            return;
+        }
+
+        using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
+        var cancellationTokenSource = new CancellationTokenSource();
+
+        Log("WS connected");
+        
+        myWSConnection = new()
+        {
+            WebSocket = webSocket,
+            CancellationTokenSource = cancellationTokenSource,
+        };
+
+        if (isPlayer == "yes")
+        {
+            playerWSConnection = myWSConnection;
+            PlayerConnected();
+        }
+        
+        wsConnections.Add(myWSConnection);
+
+        while (!cancellationTokenSource.Token.IsCancellationRequested && webSocket.State == WebSocketState.Open)
+        {
+            var segments = new ArraySegment<byte>(new byte[MAX_WS_RECEIVE_BYTES_COUNT], 0, MAX_WS_RECEIVE_BYTES_COUNT);
+            var receiveResult = await webSocket.ReceiveAsync(segments, cancellationTokenSource.Token);
+            var receivedMessageCount = receiveResult.Count;
+            var segmentsReal = segments[0..receivedMessageCount];
+            if (receiveResult.MessageType == WebSocketMessageType.Text)
+            {
+                Log("Received webhook: " + Encoding.UTF8.GetString(segmentsReal));
+            }
+            else
+            {
+                Log("Received webhook message type: " + receiveResult.MessageType);
+            }
+            
+        }
+        
+        wsConnections.Remove(myWSConnection);
+
+        if (playerWSConnection == myWSConnection)
+        {
+            // await playerWSConnection.WebSocket.CloseAsync();
+            await playerWSConnection.CancellationTokenSource.CancelAsync();
+            playerWSConnection = null;
+            PlayerDisconnected();
+        }
+
+        myWSConnection = null;
+        Log("WS disconnected");
+    }
+
+    public MainController(ILogger<MainController> logger)
     {
         _logger = logger;
     }
@@ -25,30 +98,68 @@ public class MainController : ControllerBase
         string videoId = "wvK1VishIX0";
         await DownloadYouTubeAudio(videoId, "audio.mp3");
 
-        // using (var mediaPlayer = new VlcMediaPlayer(new DirectoryInfo(@"C:\Program Files\VideoLAN\VLC")))
-        using (var mediaPlayer = new VlcMediaPlayer(new DirectoryInfo(VLC_PATH)))
-        {
-            mediaPlayer.SetMedia(new FileInfo("audio.mp3"));
-            mediaPlayer.Play();
-            Thread.Sleep(30_000);
-            mediaPlayer.Stop();
-            // var mediaOptions = new[]
-            // {
-            //     $"--http-user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.83 Safari/537.36"
-            // };
-            // // mediaPlayer.SetMedia(new Uri($"https://music.youtube.com/watch?v={videoId}"), mediaOptions);
-            // mediaPlayer.SetMedia(new Uri($"https://music.youtube.com/watch?v=UBGLPVEbTzE"), mediaOptions);
-            // mediaPlayer.Play();
-            // Console.ReadLine(); // Wait for user input to stop the playback
-            // mediaPlayer.Stop();
-        }
-
         return "hello world";
     }
 
+    
+    [HttpGet("/api/search")]
+    public ValueTask<List<object>> Search(string query, int count = 10)
+    {
+        return SearchYoutube(query, count)
+        .Select(x =>
+        {
+            var videoId = ExtractVideoId(x.Url);
+            return (object)new
+            {
+                x.Title,
+                x.Url,
+                Id = videoId,
+                Duration = (int?)x.Duration?.TotalSeconds,
+                Exists = System.IO.File.Exists(@$"wwwroot/data/{videoId}.mp3")
+            };
+        })
+        .ToListAsync();
+    }
+    
+    [HttpPost("/api/download")]
+    public async Task Download(string id)
+    {
+        if (!Directory.Exists("wwwroot/data"))
+        {
+            Directory.CreateDirectory("wwwroot/data");
+        }
+        
+        var youtube = new YoutubeClient();
+        var streamManifest = await youtube.Videos.Streams.GetManifestAsync(id);
+        var audioStreamInfo = streamManifest.GetAudioOnlyStreams().FirstOrDefault();
+        if (audioStreamInfo != null)
+        {
+            await youtube.Videos.Streams.DownloadAsync(audioStreamInfo, $@"wwwroot/data/{id}.mp3");
+        }
+        else
+        {
+            LogStatic("No audio stream found for the specified video.");
+        }
+    }
 
 
+    private static String ExtractVideoId(string url)
+    {
+        var simpleIds = videoFromUrlRegex.Match(url).Groups["videoId"];
+        var shortenedIds = videoFromUrlRegex.Match(url).Groups["videoId2"];
 
+        if (simpleIds.Success)
+        {
+            return simpleIds.Value;
+        }
+        
+        if (shortenedIds.Success)
+        {
+            return simpleIds.Value;
+        }
+
+        throw new Exception("Video url not found.");
+    }
     static async Task DownloadYouTubeAudio(string videoId, string outputPath)
     {
         var youtube = new YoutubeClient();
@@ -56,15 +167,66 @@ public class MainController : ControllerBase
         var audioStreamInfo = streamManifest.GetAudioOnlyStreams().FirstOrDefault();
         if (audioStreamInfo != null)
         {
-            // using (var output = File.Create(outputPath))
-            // {
-            // }
             await youtube.Videos.Streams.DownloadAsync(audioStreamInfo, outputPath);
         }
         else
         {
-            Console.WriteLine("No audio stream found for the specified video.");
+            LogStatic("No audio stream found for the specified video.");
         }
+    }
+    
+    // static ValueTask<List<(string id, string title, int? duration)>> SearchYoutube(string query, int count = 10)
+    // {
+    //     return new YoutubeClient()
+    //         .Search
+    //         .GetVideosAsync(query)
+    //         .Take(count)
+    //         .Select(x => (x.Title, x.Url, (int?)x.Duration?.TotalSeconds))
+    //         .Take(5)
+    //         .ToListAsync();
+    // }
+    
+    static IAsyncEnumerable<VideoSearchResult> SearchYoutube(string query, int count = 10)
+    {
+        return new YoutubeClient()
+            .Search
+            .GetVideosAsync(query)
+            .Take(count);
+    }
+    
+
+    private static async Task LogStatic(string message)
+    {
+        Console.WriteLine(message);
+        
+        if (playerWSConnection == null)
+        {
+            return;
+        }
+
+        if (playerWSConnection.WebSocket.State != WebSocketState.Open)
+        {
+            playerWSConnection = null;
+            PlayerDisconnected();
+            return;
+        }
+        
+        var segments = new ArraySegment<byte>(Encoding.UTF8.GetBytes(message));
+        await playerWSConnection.WebSocket.SendAsync(segments, WebSocketMessageType.Text, true, new());
+    }
+    private Task Log(string message)
+    {
+        message = $"Conn {this.GetHashCode()}: {message}";
+        return LogStatic(message);
+    }
+
+    private static void PlayerConnected()
+    {
+        Console.WriteLine("PlayerConnected");
+    }
+    private static void PlayerDisconnected()
+    {
+        Console.WriteLine("PlayerDisconnected");
     }
 }
 
