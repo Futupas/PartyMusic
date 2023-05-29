@@ -1,3 +1,8 @@
+# VLC
+# FROM galexrt/vlc:latest
+FROM jrottenberg/ffmpeg:4.1-alpine-vlc
+
+
 # Base image with .NET SDK 8 and VLC
 FROM mcr.microsoft.com/dotnet/sdk:7.0 AS base
 
@@ -5,7 +10,9 @@ FROM mcr.microsoft.com/dotnet/sdk:7.0 AS base
 ENV VLC_DIR /usr/lib/vlc
 
 # Install VLC dependencies
-RUN apt-get update && apt-get install -y vlc
+# RUN apt update
+# RUN apt upgrade -y
+# RUN apt install vlc -y
 
 # Set the working directory
 WORKDIR /app

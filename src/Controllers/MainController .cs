@@ -9,6 +9,9 @@ namespace PartyMusic.Controllers;
 [Route("/api/[controller]")]
 public class MainController : ControllerBase
 {
+    // const string VLC_PATH = @"C:\Program Files\VideoLAN\VLC";
+    const string VLC_PATH = @"/usr/lib/vlc";
+
     private readonly ILogger<WeatherForecastController> _logger;
 
     public MainController(ILogger<WeatherForecastController> logger)
@@ -22,8 +25,8 @@ public class MainController : ControllerBase
         string videoId = "wvK1VishIX0";
         await DownloadYouTubeAudio(videoId, "audio.mp3");
 
-
-        using (var mediaPlayer = new VlcMediaPlayer(new DirectoryInfo(@"C:\Program Files\VideoLAN\VLC")))
+        // using (var mediaPlayer = new VlcMediaPlayer(new DirectoryInfo(@"C:\Program Files\VideoLAN\VLC")))
+        using (var mediaPlayer = new VlcMediaPlayer(new DirectoryInfo(VLC_PATH)))
         {
             mediaPlayer.SetMedia(new FileInfo("audio.mp3"));
             mediaPlayer.Play();
