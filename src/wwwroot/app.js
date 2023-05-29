@@ -15,6 +15,7 @@ socket.onmessage = function(event) {
         const songsDiv = document.querySelector('#main > div.all-songs');
         songsDiv.innerHTML = '';
         for (let i = 1; i < songs.length; i++) {
+            const newI = i;
             const div = document.createElement('div');
             div.classList.add('song');
 
@@ -26,6 +27,14 @@ socket.onmessage = function(event) {
             const removeButton = document.createElement('button');
             removeButton.classList.add('remove');
             removeButton.innerText = 'DEL'; // &#128465;
+            removeButton.onclick = async e => {
+                await fetch('/api/remove-song-from-queue?songId=' + newI, {
+                    method: 'POST',
+                });
+                if (!downloadResp.ok) {
+                    alert('Couldn\'t remove song from queue.');
+                }
+            }
             div.appendChild(removeButton);
 
             songsDiv.appendChild(div);

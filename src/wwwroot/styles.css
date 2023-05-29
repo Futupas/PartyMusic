@@ -64,7 +64,7 @@
     width: 50px;
 }
 
-#main > .song.new {
+#add-song-btn {
     width: -webkit-fill-available;
     font-size: 30px;
     display: block;

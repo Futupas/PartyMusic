@@ -3,12 +3,7 @@ using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using PartyMusic.Models.Core;
 using YoutubeExplode;
-// using Vlc.DotNet.Core;
-using Vlc.DotNet.Core.Interops;
-using YoutubeExplode.Common;
-using System.Linq;
 using YoutubeExplode.Search;
-using System.IO;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
@@ -170,11 +165,22 @@ public class MainController : ControllerBase
             SongsQueue.Add(songId);
         }
 
-        foreach (var conn in wsConnections)
+        UpdateSongsAsync();
+    }
+    [HttpPost("/api/remove-song-from-queue")]
+    public async Task RemoveSongFromQueue(int songId)
+    {
+        SongsQueue.RemoveAt(songId);
+        UpdateSongsAsync();
+    }
+
+    private Task UpdateSongsAsync()
+    {
+        return Task.WhenAll(wsConnections.Select(conn =>
         {
             if (conn.WebSocket.State != WebSocketState.Open)
             {
-                continue;
+                return Task.CompletedTask;
             }
 
             string message = JsonSerializer.Serialize(new
@@ -183,8 +189,8 @@ public class MainController : ControllerBase
                 songs = SongsQueue.Select(x => AllSongs[x]),
             });
             var segments = new ArraySegment<byte>(Encoding.UTF8.GetBytes(message));
-            conn.WebSocket.SendAsync(segments, WebSocketMessageType.Text, true, new());
-        }
+            return conn.WebSocket.SendAsync(segments, WebSocketMessageType.Text, true, new());
+        }));
     }
 
     private static String ExtractVideoId(string url)
@@ -218,18 +224,7 @@ public class MainController : ControllerBase
             LogStatic("No audio stream found for the specified video.");
         }
     }
-    
-    // static ValueTask<List<(string id, string title, int? duration)>> SearchYoutube(string query, int count = 10)
-    // {
-    //     return new YoutubeClient()
-    //         .Search
-    //         .GetVideosAsync(query)
-    //         .Take(count)
-    //         .Select(x => (x.Title, x.Url, (int?)x.Duration?.TotalSeconds))
-    //         .Take(5)
-    //         .ToListAsync();
-    // }
-    
+
     static IAsyncEnumerable<VideoSearchResult> SearchYoutube(string query, int count = 10)
     {
         return new YoutubeClient()
@@ -280,49 +275,3 @@ public class MainController : ControllerBase
     }
 }
 
-/*
-
-using YoutubeExplode.Search;
-using YoutubeExplode;
-
-var youtube = new YoutubeClient();
-// youtube.Search.GetVideosAsync("fff").CollectAsync(5);
-
-await foreach (var result in youtube.Search.GetResultsAsync("nothing else matters").Take(10))
-{
-    // Use pattern matching to handle different results (videos, playlists, channels)
-    switch (result)
-    {
-        case VideoSearchResult video:
-        {
-            var id = video.Id;
-            var title = video.Title;
-            var duration = video.Duration;
-            Console.WriteLine($"Video {title}");
-            break;
-        }
-        case PlaylistSearchResult playlist:
-        {
-            var id = playlist.Id;
-            var title = playlist.Title;
-            Console.WriteLine($"playlist {title}");
-            break;
-        }
-        case ChannelSearchResult channel:
-        {
-            var id = channel.Id;
-            var title = channel.Title;
-            Console.WriteLine($"channel {title}");
-            break;
-        }
-        default:
-        {
-            var title = result.Title;
-            Console.WriteLine($"other {title}");
-            break;
-        }
-    }
-}
-
-
-*/
