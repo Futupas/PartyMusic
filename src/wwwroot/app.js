@@ -1,5 +1,56 @@
 'use strict';
 
+const socket = new WebSocket(`ws://${window.location.host}/api/ws?isPlayer=no`);
+
+socket.onopen = function(e) {
+    console.log("[open] Connection established");
+};
+
+socket.onmessage = function(event) {
+    console.log('[message] Data received from server', event.data);
+    const data = JSON.parse(event.data);
+    if (data.actionId === 'update_songs') {
+        const songs = data.songs;
+        document.querySelector('#main > div.song.current > div.text').innerText = songs[0].Title || 'No current song'; //todo duration
+        const songsDiv = document.querySelector('#main > div.all-songs');
+        songsDiv.innerHTML = '';
+        for (let i = 1; i < songs.length; i++) {
+            const div = document.createElement('div');
+            div.classList.add('song');
+
+            const text = document.createElement('div');
+            text.classList.add('text');
+            text.innerText = songs[i].Title; //todo duration
+            div.appendChild(text);
+
+            const removeButton = document.createElement('button');
+            removeButton.classList.add('remove');
+            removeButton.innerText = 'DEL'; // &#128465;
+            div.appendChild(removeButton);
+
+            songsDiv.appendChild(div);
+        }
+    } else {
+        console.warn('Unknown actionId', event.data.actionId);
+    }
+};
+
+socket.onclose = function(event) {
+    if (event.wasClean) {
+        console.log(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+    } else {
+        // e.g. server process killed or network down
+        // event.code is usually 1006 in this case
+        alert('[close] Connection died');
+    }
+};
+
+socket.onerror = function(error) {
+    alert(`[error]`);
+    console.error(error);
+};
+
+
 document.getElementById('add-song-btn').onclick = e => {
     document.getElementById('search').classList.remove('hidden');
 }
@@ -45,11 +96,27 @@ document.getElementById('search-song-submit').onclick = async e => {
         const btnPlayNow = document.createElement('button');
         btnPlayNow.classList.add('play-now');
         btnPlayNow.innerText = 'PN';
+        btnPlayNow.onclick = async e => {
+            const downloadResp = await fetch('/api/add-song-to-queue?start=yes&songId=' + songId, {
+                method: 'POST',
+            });
+            if (!downloadResp.ok) {
+                alert('Couldn\'t add song to queue.');
+            }
+        }
         div.appendChild(btnPlayNow);
         
         const btnAddToQueue = document.createElement('button');
         btnAddToQueue.classList.add('add-to-queue');
         btnAddToQueue.innerText = 'A2Q';
+        btnAddToQueue.onclick = async e => {
+            const downloadResp = await fetch('/api/add-song-to-queue?start=no&songId=' + songId, {
+                method: 'POST',
+            });
+            if (!downloadResp.ok) {
+                alert('Couldn\'t add song to queue.');
+            }
+        }
         div.appendChild(btnAddToQueue);
         
         
@@ -88,3 +155,6 @@ document.getElementById('search-song-submit').onclick = async e => {
         resultsDiv.appendChild(div);
     }
 }
+
+
+

@@ -9,6 +9,7 @@ using YoutubeExplode.Common;
 using System.Linq;
 using YoutubeExplode.Search;
 using System.IO;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace PartyMusic.Controllers;
@@ -23,13 +24,16 @@ public class MainController : ControllerBase
     private static readonly Regex videoFromUrlRegex =
         new (@"(youtube\.com\/watch.*([\?\&]v\=(?<videoId>[a-zA-Z0-9]*)))|(youtu\.be\/(?<videoId2>[a-zA-Z0-9]*))", RegexOptions.Compiled);
 
+    private static readonly List<string> SongsQueue = new();
+    private static readonly Dictionary<string, SongModel> AllSongs = new(); //todo This is a very bad decision 'cause it will use lots of memory. 
+
     private WebSocketConnection? myWSConnection = null;
     private static WebSocketConnection? playerWSConnection = null;
     private static List<WebSocketConnection> wsConnections = new();
     
     
-    [HttpGet("/ws")]
-    public async Task GetWs(string? isPlayer)
+    [HttpGet("/api/ws")]
+    public async Task GetWs(string isPlayer = "no")
     {
         if (!HttpContext.WebSockets.IsWebSocketRequest)
         {
@@ -109,6 +113,12 @@ public class MainController : ControllerBase
         .Select(x =>
         {
             var videoId = ExtractVideoId(x.Url);
+            AllSongs[videoId] = new()
+            {
+                Id = videoId,
+                Title = x.Title,
+                Duration = (int?)x.Duration?.TotalSeconds,
+            };
             return (object)new
             {
                 x.Title,
@@ -142,6 +152,40 @@ public class MainController : ControllerBase
         }
     }
 
+    [HttpPost("/api/add-song-to-queue")]
+    public async Task AddSongToQueue(string songId, string start = "no")
+    {
+        var song = AllSongs[songId];
+        if (song == null)
+        {
+            throw new Exception("No such song found");
+        }
+
+        if (start == "yes" && SongsQueue.Any())
+        {
+            SongsQueue.Insert(1, songId);
+        }
+        else
+        {
+            SongsQueue.Add(songId);
+        }
+
+        foreach (var conn in wsConnections)
+        {
+            if (conn.WebSocket.State != WebSocketState.Open)
+            {
+                continue;
+            }
+
+            string message = JsonSerializer.Serialize(new
+            {
+                actionId = "update_songs",
+                songs = SongsQueue.Select(x => AllSongs[x]),
+            });
+            var segments = new ArraySegment<byte>(Encoding.UTF8.GetBytes(message));
+            conn.WebSocket.SendAsync(segments, WebSocketMessageType.Text, true, new());
+        }
+    }
 
     private static String ExtractVideoId(string url)
     {
@@ -211,6 +255,12 @@ public class MainController : ControllerBase
             return;
         }
         
+        message = JsonSerializer.Serialize(new
+        {
+            actionId = "add_log",
+            level = "log",
+            message,
+        });
         var segments = new ArraySegment<byte>(Encoding.UTF8.GetBytes(message));
         await playerWSConnection.WebSocket.SendAsync(segments, WebSocketMessageType.Text, true, new());
     }

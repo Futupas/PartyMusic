@@ -24,4 +24,8 @@ app.MapControllers();
 
 app.UseStaticFiles();
 
+app.UseWebSockets();
+
 app.Run();
+
+System.IO.Directory.Delete("wwwroot/data");
