@@ -113,7 +113,7 @@ public class MainController : ControllerBase
         if (playerWSConnection == myWSConnection)
         {
             // await playerWSConnection.WebSocket.CloseAsync();
-            await playerWSConnection.CancellationTokenSource.CancelAsync();
+            playerWSConnection.CancellationTokenSource.Cancel();
             playerWSConnection = null;
             PlayerDisconnected();
         }
