@@ -1,11 +1,13 @@
 'use strict';
 
+const audio = new Audio();
+audio.autoplay = true;
 
 document.getElementById('set').onclick = async e => {
     // new QRCode(document.getElementById("qrcode"), "https://webisora.com");
     // new QRCode(document.querySelector("#qrcode > div"), "https://webisora.com");
     var qrcode = new QRCode(document.querySelector("#qrcode > div"), {
-        text: "https://webisora.com",
+        text: `http://${window.location.host}/index.html`,
         width: 512,
         height: 512,
         colorDark : "black",
@@ -31,8 +33,20 @@ document.getElementById('set').onclick = async e => {
             const div = document.createElement('div');
             div.innerText = message;
             document.getElementById('console').appendChild(div);
+        } else if (data.actionId === 'set_volume') {
+            audio.volume = data.volume / 100;
+        } else if (data.actionId === 'play_pause_song') {
+            if (data.play) {
+                audio.play();
+            } else {
+                audio.pause();
+            }
+        } else if (data.actionId === 'restart_song') {
+            audio.currentTime = 0;
+        } else if (data.actionId === 'new_song') {
+            audio.src = `/data/${data.song.Id}.mp3`;
         } else {
-            console.warn('Unknown actionId', event.data.actionId);
+            console.warn('Unknown actionId', data.actionId);
         }
     };
 
@@ -52,4 +66,5 @@ document.getElementById('set').onclick = async e => {
     };
 
 }
+
 

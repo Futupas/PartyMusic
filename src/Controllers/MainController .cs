@@ -18,7 +18,7 @@ public class MainController : ControllerBase
     const int MAX_WS_RECEIVE_BYTES_COUNT = 100;
 
     private static readonly Regex videoFromUrlRegex =
-        new (@"(youtube\.com\/watch.*([\?\&]v\=(?<videoId>[a-zA-Z0-9]*)))|(youtu\.be\/(?<videoId2>[a-zA-Z0-9]*))", RegexOptions.Compiled);
+        new (@"(youtube\.com\/watch.*([\?\&]v\=(?<videoId>[a-zA-Z0-9\-]*)))|(youtu\.be\/(?<videoId2>[a-zA-Z0-9\-]*))", RegexOptions.Compiled);
 
     private static readonly List<string> SongsQueue = new();
     private static readonly Dictionary<string, SongModel> AllSongs = new(); //todo This is a very bad decision 'cause it will use lots of memory. 
@@ -60,6 +60,14 @@ public class MainController : ControllerBase
         {
             playerWSConnection = myWSConnection;
             PlayerConnected();
+            if (SongsQueue.Any())
+            {
+                await SendToPlayer(new
+                {
+                    actionId = "new_song",
+                    song = AllSongs[SongsQueue[0]]
+                });
+            }
         }
         
         wsConnections.Add(myWSConnection);
@@ -270,20 +278,6 @@ public class MainController : ControllerBase
         }
 
         throw new Exception("Video url not found.");
-    }
-    static async Task DownloadYouTubeAudio(string videoId, string outputPath)
-    {
-        var youtube = new YoutubeClient();
-        var streamManifest = await youtube.Videos.Streams.GetManifestAsync(videoId);
-        var audioStreamInfo = streamManifest.GetAudioOnlyStreams().FirstOrDefault();
-        if (audioStreamInfo != null)
-        {
-            await youtube.Videos.Streams.DownloadAsync(audioStreamInfo, outputPath);
-        }
-        else
-        {
-            LogStatic("No audio stream found for the specified video.");
-        }
     }
 
     static IAsyncEnumerable<VideoSearchResult> SearchYoutube(string query, int count = 10)
