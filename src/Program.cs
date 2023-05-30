@@ -28,4 +28,4 @@ app.UseWebSockets();
 
 app.Run();
 
-System.IO.Directory.Delete("wwwroot/data");
+System.IO.Directory.Delete("wwwroot/data", true);

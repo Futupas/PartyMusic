@@ -6,6 +6,7 @@ using YoutubeExplode;
 using YoutubeExplode.Search;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using AngleSharp.Text;
 
 namespace PartyMusic.Controllers;
 
@@ -25,7 +26,15 @@ public class MainController : ControllerBase
     private WebSocketConnection? myWSConnection = null;
     private static WebSocketConnection? playerWSConnection = null;
     private static List<WebSocketConnection> wsConnections = new();
+
+    private static bool playing = false;
+    private static double volume = 50.0;
     
+    public MainController(ILogger<MainController> logger)
+    {
+        _logger = logger;
+    }
+
     
     [HttpGet("/api/ws")]
     public async Task GetWs(string isPlayer = "no")
@@ -54,7 +63,26 @@ public class MainController : ControllerBase
         }
         
         wsConnections.Add(myWSConnection);
-
+        
+        await Task.WhenAll(
+            SendToUser(myWSConnection, new
+            {
+                actionId = "update_songs",
+                songs = SongsQueue.Select(x => AllSongs[x]),
+            }),
+            SendToUser(myWSConnection, new
+            {
+                actionId = "play_pause_song",
+                play = playing,
+            }),
+            SendToUser(myWSConnection, new
+            {
+                actionId = "set_volume",
+                volume = volume < 0 ? 0 : volume > 100 ? 100 : volume,
+            })
+        );
+        
+        
         while (!cancellationTokenSource.Token.IsCancellationRequested && webSocket.State == WebSocketState.Open)
         {
             var segments = new ArraySegment<byte>(new byte[MAX_WS_RECEIVE_BYTES_COUNT], 0, MAX_WS_RECEIVE_BYTES_COUNT);
@@ -86,21 +114,7 @@ public class MainController : ControllerBase
         Log("WS disconnected");
     }
 
-    public MainController(ILogger<MainController> logger)
-    {
-        _logger = logger;
-    }
 
-    [HttpGet(Name = "Test")]
-    public async Task<string> Test()
-    {
-        string videoId = "wvK1VishIX0";
-        await DownloadYouTubeAudio(videoId, "audio.mp3");
-
-        return "hello world";
-    }
-
-    
     [HttpGet("/api/search")]
     public ValueTask<List<object>> Search(string query, int count = 10)
     {
@@ -165,7 +179,16 @@ public class MainController : ControllerBase
             SongsQueue.Add(songId);
         }
 
-        UpdateSongsAsync();
+        if (SongsQueue.Count == 1)
+        {
+            await SendToPlayer(new
+            {
+                actionId = "new_song",
+                song = AllSongs[SongsQueue[0]]
+            });
+        }
+
+        await UpdateSongsAsync();
     }
     [HttpPost("/api/remove-song-from-queue")]
     public async Task RemoveSongFromQueue(int songId)
@@ -173,24 +196,62 @@ public class MainController : ControllerBase
         SongsQueue.RemoveAt(songId);
         UpdateSongsAsync();
     }
+    
+    
+    [HttpPost("/api/restart-song")]
+    public Task RestartSong()
+    {
+        return SendToPlayer(new
+        {
+            actionId = "restart_song",
+        });
+    }
+    
+    [HttpPost("/api/next-song")]
+    public async Task NextSong()
+    {
+        if (SongsQueue.Count() < 2)
+        {
+            throw new Exception("Too few songs");
+        }
+        SongsQueue.RemoveAt(0);
+        await SendToPlayer(new
+        {
+            actionId = "new_song",
+            song = AllSongs[SongsQueue[0]]
+        });
+        await UpdateSongsAsync();
+    }
+    
+    [HttpPost("/api/play-pause-song")]
+    public Task PlayPauseSong()
+    {
+        playing = !playing;
+        return SendToAllUsers(new
+        {
+            actionId = "play_pause_song",
+            play = playing,
+        });
+    }
+    
+    [HttpPost("/api/set-volume")]
+    public Task SetVolume(double volume = 50.0)
+    {
+        MainController.volume = volume;
+        return SendToAllUsers(new
+        {
+            actionId = "set_volume",
+            volume = volume < 0 ? 0 : volume > 100 ? 100 : volume,
+        });
+    }
 
     private Task UpdateSongsAsync()
     {
-        return Task.WhenAll(wsConnections.Select(conn =>
+        return SendToAllUsers(new
         {
-            if (conn.WebSocket.State != WebSocketState.Open)
-            {
-                return Task.CompletedTask;
-            }
-
-            string message = JsonSerializer.Serialize(new
-            {
-                actionId = "update_songs",
-                songs = SongsQueue.Select(x => AllSongs[x]),
-            });
-            var segments = new ArraySegment<byte>(Encoding.UTF8.GetBytes(message));
-            return conn.WebSocket.SendAsync(segments, WebSocketMessageType.Text, true, new());
-        }));
+            actionId = "update_songs",
+            songs = SongsQueue.Select(x => AllSongs[x]),
+        });
     }
 
     private static String ExtractVideoId(string url)
@@ -231,6 +292,36 @@ public class MainController : ControllerBase
             .Search
             .GetVideosAsync(query)
             .Take(count);
+    }
+
+    private static Task SendToPlayer(object o)
+    {
+        AssertPlayerIsNotNull();
+        return SendToUser(playerWSConnection!, o);
+    }
+    
+    private static async Task SendToAllUsers(object o)
+    {
+        await Task.WhenAll(wsConnections.Select(conn => SendToUser(conn, o)));
+    }
+    
+    private static Task SendToUser(WebSocketConnection conn, object o)
+    {
+        if (conn.WebSocket.State != WebSocketState.Open)
+        {
+            return Task.CompletedTask;
+        }
+        string message = JsonSerializer.Serialize(o);
+        var segments = new ArraySegment<byte>(Encoding.UTF8.GetBytes(message));
+        return conn!.WebSocket.SendAsync(segments, WebSocketMessageType.Text, true, new());
+    }
+
+    private static void AssertPlayerIsNotNull()
+    {
+        if (playerWSConnection == null)
+        {
+            throw new Exception("Player is not set.");
+        }
     }
     
 

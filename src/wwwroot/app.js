@@ -26,7 +26,7 @@ socket.onmessage = function(event) {
 
             const removeButton = document.createElement('button');
             removeButton.classList.add('remove');
-            removeButton.innerText = 'DEL'; // &#128465;
+            removeButton.innerHTML = '&#128465;';
             removeButton.onclick = async e => {
                 await fetch('/api/remove-song-from-queue?songId=' + newI, {
                     method: 'POST',
@@ -39,6 +39,10 @@ socket.onmessage = function(event) {
 
             songsDiv.appendChild(div);
         }
+    } else if (data.actionId === 'play_pause_song') {
+        document.querySelector('#current > .pause').innerHTML = data.play ? '|&nbsp;|' : '&#9658;';
+    } else if (data.actionId === 'set_volume') {
+        document.getElementById('song-volume').value = data.volume;
     } else {
         console.warn('Unknown actionId', event.data.actionId);
     }
@@ -162,6 +166,40 @@ document.getElementById('search-song-submit').onclick = async e => {
         }
 
         resultsDiv.appendChild(div);
+    }
+}
+
+document.querySelector('#current > .restart').onclick = async e => {
+    const resp = await fetch('/api/restart-song', {
+        method: 'POST',
+    });
+    if (!resp.ok) {
+        alert('Couldn\'t restart song.');
+    }
+}
+document.querySelector('#current > .pause').onclick = async e => {
+    const resp = await fetch('/api/play-pause-song', {
+        method: 'POST',
+    });
+    if (!resp.ok) {
+        alert('Couldn\'t play/pause song.');
+    }
+}
+document.querySelector('#current > .next-song').onclick = async e => {
+    const resp = await fetch('/api/next-song', {
+        method: 'POST',
+    });
+    if (!resp.ok) {
+        alert('Couldn\'t play next song.');
+    }
+}
+document.getElementById('song-volume').oninput = async e => {
+    const volume = document.getElementById('song-volume').value;
+    const resp = await fetch('/api/set-volume?volume=' + volume, {
+        method: 'POST',
+    });
+    if (!resp.ok) {
+        alert('Couldn\'t change volume song.');
     }
 }
 
