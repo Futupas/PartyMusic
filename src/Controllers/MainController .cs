@@ -232,9 +232,9 @@ public class MainController : ControllerBase
     }
     
     [HttpPost("/api/play-pause-song")]
-    public Task PlayPauseSong()
+    public Task PlayPauseSong(string? play)
     {
-        playing = !playing;
+        playing = (play == "yes") ? true : (play == "no") ? false : !playing;
         return SendToAllUsers(new
         {
             actionId = "play_pause_song",

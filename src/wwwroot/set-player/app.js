@@ -6,7 +6,7 @@ audio.autoplay = true;
 document.getElementById('set').onclick = async e => {
     // new QRCode(document.getElementById("qrcode"), "https://webisora.com");
     // new QRCode(document.querySelector("#qrcode > div"), "https://webisora.com");
-    var qrcode = new QRCode(document.querySelector("#qrcode > div"), {
+    const qrcode = new QRCode(document.querySelector("#qrcode > div"), {
         text: `http://${window.location.host}/index.html`,
         width: 512,
         height: 512,
@@ -43,8 +43,12 @@ document.getElementById('set').onclick = async e => {
             }
         } else if (data.actionId === 'restart_song') {
             audio.currentTime = 0;
+            audio.play();
+            fetch('/api/play-pause-song?play=yes', { method: 'POST' });
         } else if (data.actionId === 'new_song') {
             audio.src = `/data/${data.song.Id}.mp3`;
+            audio.play();
+            fetch('/api/play-pause-song?play=yes', { method: 'POST' });
         } else {
             console.warn('Unknown actionId', data.actionId);
         }
@@ -64,6 +68,15 @@ document.getElementById('set').onclick = async e => {
         alert(`[error]`);
         console.error(error);
     };
+
+    audio.onended = async e => {
+        const resp = await fetch('/api/next-song', {
+            method: 'POST',
+        });
+        if (!resp.ok) {
+            alert('Couldn\'t play next song.');
+        }
+    }
 
 }
 
