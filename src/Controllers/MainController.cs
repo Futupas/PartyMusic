@@ -7,32 +7,30 @@ using YoutubeExplode.Search;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using AngleSharp.Text;
+using PartyMusic.Services;
 
 namespace PartyMusic.Controllers;
 
 [ApiController]
 [Route("/api/[controller]")]
-public class MainController : ControllerBase
+internal class MainController : ControllerBase
 {
-    private readonly ILogger<MainController> _logger;
+    private readonly ILogger<MainController> logger;
+    private readonly CoreService core;
+    private readonly YoutubeService youtube;
+    
     const int MAX_WS_RECEIVE_BYTES_COUNT = 100;
 
-    private static readonly Regex videoFromUrlRegex =
-        new (@"(youtube\.com\/watch.*([\?\&]v\=(?<videoId>[a-zA-Z0-9\-]*)))|(youtu\.be\/(?<videoId2>[a-zA-Z0-9\-]*))", RegexOptions.Compiled);
-
-    private static readonly List<string> SongsQueue = new();
-    private static readonly Dictionary<string, SongModel> AllSongs = new(); //todo This is a very bad decision 'cause it will use lots of memory. 
-
     private WebSocketConnection? myWSConnection = null;
-    private static WebSocketConnection? playerWSConnection = null;
-    private static List<WebSocketConnection> wsConnections = new();
-
-    private static bool playing = false;
-    private static double volume = 50.0;
     
-    public MainController(ILogger<MainController> logger)
-    {
-        _logger = logger;
+    public MainController(
+        ILogger<MainController> logger,
+        CoreService core,
+        YoutubeService youtube
+    ) {
+        this.logger = logger;
+        this.core = core;
+        this.youtube = youtube;
     }
 
     
@@ -48,7 +46,7 @@ public class MainController : ControllerBase
         using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
         var cancellationTokenSource = new CancellationTokenSource();
 
-        Log("WS connected");
+        core.Log("WS connected");
         
         myWSConnection = new()
         {
@@ -58,35 +56,35 @@ public class MainController : ControllerBase
 
         if (isPlayer == "yes")
         {
-            playerWSConnection = myWSConnection;
-            PlayerConnected();
-            if (SongsQueue.Any())
+            core.PlayerWSConnection = myWSConnection;
+            core.PlayerConnected();
+            if (core.SongsQueue.Any())
             {
-                await SendToPlayer(new
+                await core.SendToPlayer(new
                 {
                     actionId = "new_song",
-                    song = AllSongs[SongsQueue[0]]
+                    song = core.AllSongs[core.SongsQueue[0]]
                 });
             }
         }
         
-        wsConnections.Add(myWSConnection);
+        core.WSConnections.Add(myWSConnection);
         
         await Task.WhenAll(
-            SendToUser(myWSConnection, new
+            core.SendToUser(myWSConnection, new
             {
                 actionId = "update_songs",
-                songs = SongsQueue.Select(x => AllSongs[x]),
+                songs = core.SongsQueue.Select(x => core.AllSongs[x]),
             }),
-            SendToUser(myWSConnection, new
+            core.SendToUser(myWSConnection, new
             {
                 actionId = "play_pause_song",
-                play = playing,
+                play = core.Playing,
             }),
-            SendToUser(myWSConnection, new
+            core.SendToUser(myWSConnection, new
             {
                 actionId = "set_volume",
-                volume = volume < 0 ? 0 : volume > 100 ? 100 : volume,
+                volume = core.Volume < 0 ? 0 : core.Volume > 100 ? 100 : core.Volume,
             })
         );
         
@@ -99,38 +97,38 @@ public class MainController : ControllerBase
             var segmentsReal = segments[0..receivedMessageCount];
             if (receiveResult.MessageType == WebSocketMessageType.Text)
             {
-                Log("Received webhook: " + Encoding.UTF8.GetString(segmentsReal));
+                core.Log(this, "Received webhook: " + Encoding.UTF8.GetString(segmentsReal));
             }
             else
             {
-                Log("Received webhook message type: " + receiveResult.MessageType);
+                core.Log(this, "Received webhook message type: " + receiveResult.MessageType);
             }
             
         }
         
-        wsConnections.Remove(myWSConnection);
+        core.WSConnections.Remove(myWSConnection);
 
-        if (playerWSConnection == myWSConnection)
+        if (core.PlayerWSConnection == myWSConnection)
         {
             // await playerWSConnection.WebSocket.CloseAsync();
-            playerWSConnection.CancellationTokenSource.Cancel();
-            playerWSConnection = null;
-            PlayerDisconnected();
+            core.PlayerWSConnection.CancellationTokenSource.Cancel();
+            core.PlayerWSConnection = null;
+            core.PlayerDisconnected();
         }
 
         myWSConnection = null;
-        Log("WS disconnected");
+        core.Log(this, "WS disconnected");
     }
 
 
     [HttpGet("/api/search")]
     public ValueTask<List<object>> Search(string query, int count = 10)
     {
-        return SearchYoutube(query, count)
+        return youtube.SearchYoutube(query, count)
         .Select(x =>
         {
-            var videoId = ExtractVideoId(x.Url);
-            AllSongs[videoId] = new()
+            var videoId = youtube.ExtractVideoId(x.Url);
+            core.AllSongs[videoId] = new()
             {
                 Id = videoId,
                 Title = x.Title,
@@ -151,65 +149,50 @@ public class MainController : ControllerBase
     [HttpPost("/api/download")]
     public async Task Download(string id)
     {
-        if (!Directory.Exists("wwwroot/data"))
-        {
-            Directory.CreateDirectory("wwwroot/data");
-        }
-        
-        var youtube = new YoutubeClient();
-        var streamManifest = await youtube.Videos.Streams.GetManifestAsync(id);
-        var audioStreamInfo = streamManifest.GetAudioOnlyStreams().FirstOrDefault();
-        if (audioStreamInfo != null)
-        {
-            await youtube.Videos.Streams.DownloadAsync(audioStreamInfo, $@"wwwroot/data/{id}.mp3");
-        }
-        else
-        {
-            LogStatic("No audio stream found for the specified video.");
-        }
+        await youtube.Download(id);
     }
 
     [HttpPost("/api/add-song-to-queue")]
     public async Task AddSongToQueue(string songId, string start = "no")
     {
-        var song = AllSongs[songId];
+        var song = core.AllSongs[songId];
         if (song == null)
         {
             throw new Exception("No such song found");
         }
 
-        if (start == "yes" && SongsQueue.Any())
+        if (start == "yes" && core.SongsQueue.Any())
         {
-            SongsQueue.Insert(1, songId);
+            core.SongsQueue.Insert(1, songId);
         }
         else
         {
-            SongsQueue.Add(songId);
+            core.SongsQueue.Add(songId);
         }
 
-        if (SongsQueue.Count == 1)
+        if (core.SongsQueue.Count == 1)
         {
-            await SendToPlayer(new
+            await core.SendToPlayer(new
             {
                 actionId = "new_song",
-                song = AllSongs[SongsQueue[0]]
+                song = core.AllSongs[core.SongsQueue[0]]
             });
         }
 
-        await UpdateSongsAsync();
+        await core.UpdateSongsAsync();
     }
     [HttpPost("/api/remove-song-from-queue")]
     public async Task RemoveSongFromQueue(int songId)
     {
-        SongsQueue.RemoveAt(songId);
-        UpdateSongsAsync();
+        core.SongsQueue.RemoveAt(songId);
+        await core.UpdateSongsAsync();
     }
     
     
     [HttpPost("/api/restart-song")]
     public Task RestartSong()
     {
-        return SendToPlayer(new
+        return core.SendToPlayer(new
         {
             actionId = "restart_song",
         });
@@ -218,145 +201,39 @@ public class MainController : ControllerBase
     [HttpPost("/api/next-song")]
     public async Task NextSong()
     {
-        if (SongsQueue.Count() < 2)
+        if (core.SongsQueue.Count() < 2)
         {
             throw new Exception("Too few songs");
         }
-        SongsQueue.RemoveAt(0);
-        await SendToPlayer(new
+        core.SongsQueue.RemoveAt(0);
+        await core.SendToPlayer(new
         {
             actionId = "new_song",
-            song = AllSongs[SongsQueue[0]]
+            song = core.AllSongs[core.SongsQueue[0]]
         });
-        await UpdateSongsAsync();
+        await core.UpdateSongsAsync();
     }
     
     [HttpPost("/api/play-pause-song")]
     public Task PlayPauseSong(string? play)
     {
-        playing = (play == "yes") ? true : (play == "no") ? false : !playing;
-        return SendToAllUsers(new
+        core.Playing = (play == "yes") ? true : (play == "no") ? false : !core.Playing;
+        return core.SendToAllUsers(new
         {
             actionId = "play_pause_song",
-            play = playing,
+            play = core.Playing,
         });
     }
     
     [HttpPost("/api/set-volume")]
-    public Task SetVolume(double volume = 50.0)
+    public Task SetVolume(double volume = .5)
     {
-        MainController.volume = volume;
-        return SendToAllUsers(new
+        core.Volume = volume;
+        return core.SendToAllUsers(new
         {
             actionId = "set_volume",
-            volume = volume < 0 ? 0 : volume > 100 ? 100 : volume,
+            volume = volume < 0 ? 0 : volume > 1 ? 1 : volume,
         });
-    }
-
-    private Task UpdateSongsAsync()
-    {
-        return SendToAllUsers(new
-        {
-            actionId = "update_songs",
-            songs = SongsQueue.Select(x => AllSongs[x]),
-        });
-    }
-
-    private static String ExtractVideoId(string url)
-    {
-        var simpleIds = videoFromUrlRegex.Match(url).Groups["videoId"];
-        var shortenedIds = videoFromUrlRegex.Match(url).Groups["videoId2"];
-
-        if (simpleIds.Success)
-        {
-            return simpleIds.Value;
-        }
-        
-        if (shortenedIds.Success)
-        {
-            return simpleIds.Value;
-        }
-
-        throw new Exception("Video url not found.");
-    }
-
-    static IAsyncEnumerable<VideoSearchResult> SearchYoutube(string query, int count = 10)
-    {
-        return new YoutubeClient()
-            .Search
-            .GetVideosAsync(query)
-            .Take(count);
-    }
-
-    private static Task SendToPlayer(object o)
-    {
-        AssertPlayerIsNotNull();
-        return SendToUser(playerWSConnection!, o);
-    }
-    
-    private static async Task SendToAllUsers(object o)
-    {
-        await Task.WhenAll(wsConnections.Select(conn => SendToUser(conn, o)));
-    }
-    
-    private static Task SendToUser(WebSocketConnection conn, object o)
-    {
-        if (conn.WebSocket.State != WebSocketState.Open)
-        {
-            return Task.CompletedTask;
-        }
-        string message = JsonSerializer.Serialize(o);
-        var segments = new ArraySegment<byte>(Encoding.UTF8.GetBytes(message));
-        return conn!.WebSocket.SendAsync(segments, WebSocketMessageType.Text, true, new());
-    }
-
-    private static void AssertPlayerIsNotNull()
-    {
-        if (playerWSConnection == null)
-        {
-            throw new Exception("Player is not set.");
-        }
-    }
-    
-
-    private static async Task LogStatic(string message)
-    {
-        Console.WriteLine(message);
-        
-        if (playerWSConnection == null)
-        {
-            return;
-        }
-
-        if (playerWSConnection.WebSocket.State != WebSocketState.Open)
-        {
-            playerWSConnection = null;
-            PlayerDisconnected();
-            return;
-        }
-        
-        message = JsonSerializer.Serialize(new
-        {
-            actionId = "add_log",
-            level = "log",
-            message,
-        });
-        var segments = new ArraySegment<byte>(Encoding.UTF8.GetBytes(message));
-        await playerWSConnection.WebSocket.SendAsync(segments, WebSocketMessageType.Text, true, new());
-    }
-    private Task Log(string message)
-    {
-        message = $"Conn {this.GetHashCode()}: {message}";
-        return LogStatic(message);
-    }
-
-    private static void PlayerConnected()
-    {
-        Console.WriteLine("PlayerConnected");
-    }
-    private static void PlayerDisconnected()
-    {
-        Console.WriteLine("PlayerDisconnected");
     }
 }
 
