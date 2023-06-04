@@ -174,6 +174,8 @@ document.getElementById('search-song-submit').onclick = async e => {
             //     },
             //     body: JSON.stringify({ id: songId }),
             // });
+            btnDownload.querySelector('img').src = '/img/loading.png';
+            btnDownload.querySelector('img').classList.add('rotating');
             const downloadResp = await fetch('/api/download?id=' + songId, {
                 method: 'POST',
             });
@@ -182,6 +184,8 @@ document.getElementById('search-song-submit').onclick = async e => {
                 btnPlayNow.classList.remove('hidden');
                 btnAddToQueue.classList.remove('hidden');
             } else {
+                btnDownload.querySelector('img').src = '/img/download.png';
+                btnDownload.querySelector('img').classList.remove('rotating');
                 alert('Couldn\'t download song.');
             }
         }

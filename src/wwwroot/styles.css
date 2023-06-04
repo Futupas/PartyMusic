@@ -199,6 +199,14 @@ button > img {
     animation-iteration-count: infinite;
 }
 
+img.rotating {
+    display: inline-block;
+    animation-name: rotate;
+    animation-duration: 4s; /* Adjust the duration as needed */
+    animation-timing-function: steps(8);
+    animation-iteration-count: infinite;
+}
+
 @keyframes rotate {
     0% {
         transform: rotate(0deg);

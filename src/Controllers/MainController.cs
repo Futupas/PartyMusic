@@ -2,11 +2,6 @@ using System.Net.WebSockets;
 using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using PartyMusic.Models.Core;
-using YoutubeExplode;
-using YoutubeExplode.Search;
-using System.Text.Json;
-using System.Text.RegularExpressions;
-using AngleSharp.Text;
 using PartyMusic.Services;
 
 namespace PartyMusic.Controllers;
@@ -46,7 +41,7 @@ public class MainController : ControllerBase
         using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
         var cancellationTokenSource = new CancellationTokenSource();
 
-        core.Log("WS connected");
+        core.Log(this, "WS connected");
         
         myWSConnection = new()
         {
