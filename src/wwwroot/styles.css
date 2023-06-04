@@ -154,7 +154,7 @@
 #search > .main > .results > .result {
     margin: 5px;
     height: 50px;
-    background-color: lightblue;
+    background-color: #ddf;
     line-height: 50px;
     text-align: center;
     display: flex;
@@ -168,4 +168,63 @@
 }
 #search > .main > .results > .result > button {
     width: 50px;
+}
+
+button {
+    background-color: transparent;
+    border: 0px;
+    text-align: center;
+    cursor: pointer;
+}
+
+button > img {
+    width: 20px;
+    height: 20px;
+}
+
+#search-song-submit > .icon-search {
+    display: inline-block;
+}
+#search-song-submit > .icon-loading {
+    display: none;
+}
+#search-song-submit.loading > .icon-search {
+    display: none;
+}
+#search-song-submit.loading > .icon-loading {
+    display: inline-block;
+    animation-name: rotate;
+    animation-duration: 4s; /* Adjust the duration as needed */
+    animation-timing-function: steps(8);
+    animation-iteration-count: infinite;
+}
+
+@keyframes rotate {
+    0% {
+        transform: rotate(0deg);
+    }
+    12.5% {
+        transform: rotate(45deg);
+    }
+    25% {
+        transform: rotate(90deg);
+    }
+    37.5% {
+        transform: rotate(135deg);
+    }
+    50% {
+        transform: rotate(180deg);
+    }
+    62.5% {
+        transform: rotate(225deg);
+    }
+    75% {
+        transform: rotate(270deg);
+    }
+    87.5% {
+        transform: rotate(315deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
 }

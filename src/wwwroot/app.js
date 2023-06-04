@@ -26,7 +26,7 @@ socket.onmessage = function(event) {
 
             const removeButton = document.createElement('button');
             removeButton.classList.add('remove');
-            removeButton.innerHTML = '&#128465;';
+            // removeButton.innerHTML = '&#128465;';
             removeButton.onclick = async e => {
                 await fetch('/api/remove-song-from-queue?songId=' + newI, {
                     method: 'POST',
@@ -35,12 +35,24 @@ socket.onmessage = function(event) {
                     alert('Couldn\'t remove song from queue.');
                 }
             }
+            const removeButtonImg = document.createElement('img');
+            removeButtonImg.src = '/img/delete.png';
+            removeButtonImg.alt = '&#128465;';
+            removeButton.appendChild(removeButtonImg);
             div.appendChild(removeButton);
 
             songsDiv.appendChild(div);
         }
     } else if (data.actionId === 'play_pause_song') {
-        document.querySelector('#current > .pause').innerHTML = data.play ? '|&nbsp;|' : '&#9658;';
+        // document.querySelector('#current > .pause').innerHTML = data.play ? '|&nbsp;|' : '&#9658;';
+        const img = document.querySelector('#current > .pause > img');
+        if (data.play) {
+            img.src = '/img/pause.png';
+            img.alt = '|&nbsp;|';
+        } else {
+            img.src = '/img/play.png';
+            img.alt = '&#9658;';
+        }
     } else if (data.actionId === 'set_volume') {
         document.getElementById('song-volume').value = data.volume;
     } else {
@@ -82,11 +94,13 @@ document.getElementById('search-song-submit').onclick = async e => {
         alert('Empty query!');
         return;
     }
+    document.getElementById('search-song-submit').classList.add('loading');
     
     const resp = await fetch('/api/search?query=' + encodeURI(query));
     if (!resp.ok) {
         console.error(resp);
         alert('Couldn\'t fetch');
+        document.getElementById('search-song-submit').classList.remove('loading');
         return;
     }
     const data = await resp.json();
@@ -107,12 +121,14 @@ document.getElementById('search-song-submit').onclick = async e => {
         
         const btnDownload = document.createElement('button');
         btnDownload.classList.add('download');
-        btnDownload.innerText = 'D';
+        // btnDownload.innerText = 'D';
+        btnDownload.appendChild(getImage('/img/download.png', 'PN', false));
         div.appendChild(btnDownload);
 
         const btnPlayNow = document.createElement('button');
         btnPlayNow.classList.add('play-now');
-        btnPlayNow.innerText = 'PN';
+        // btnPlayNow.innerText = 'PN';
+        btnPlayNow.appendChild(getImage('/img/playlist.png', 'PN', true));
         btnPlayNow.onclick = async e => {
             const downloadResp = await fetch('/api/add-song-to-queue?start=yes&songId=' + songId, {
                 method: 'POST',
@@ -125,7 +141,8 @@ document.getElementById('search-song-submit').onclick = async e => {
         
         const btnAddToQueue = document.createElement('button');
         btnAddToQueue.classList.add('add-to-queue');
-        btnAddToQueue.innerText = 'A2Q';
+        // btnAddToQueue.innerText = 'A2Q';
+        btnAddToQueue.appendChild(getImage('/img/playlist.png', 'PN', false));
         btnAddToQueue.onclick = async e => {
             const downloadResp = await fetch('/api/add-song-to-queue?start=no&songId=' + songId, {
                 method: 'POST',
@@ -171,6 +188,18 @@ document.getElementById('search-song-submit').onclick = async e => {
 
         resultsDiv.appendChild(div);
     }
+    document.getElementById('search-song-submit').classList.remove('loading');
+}
+
+function getImage(src, alt, upsideDown = false) {
+    const image = document.createElement('img');
+    image.src = src;
+    image.alt = alt;
+    if (upsideDown) {
+        image.style.transform = 'scaleY(-1)';
+        image.style.transformOrigin = '50% 50%';
+    }
+    return image;
 }
 
 document.querySelector('#current > .restart').onclick = async e => {
