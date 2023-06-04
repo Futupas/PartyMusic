@@ -124,26 +124,7 @@ internal class MainController : ControllerBase
     [HttpGet("/api/search")]
     public ValueTask<List<object>> Search(string query, int count = 10)
     {
-        return youtube.SearchYoutube(query, count)
-        .Select(x =>
-        {
-            var videoId = youtube.ExtractVideoId(x.Url);
-            core.AllSongs[videoId] = new()
-            {
-                Id = videoId,
-                Title = x.Title,
-                Duration = (int?)x.Duration?.TotalSeconds,
-            };
-            return (object)new
-            {
-                x.Title,
-                x.Url,
-                Id = videoId,
-                Duration = (int?)x.Duration?.TotalSeconds,
-                Exists = System.IO.File.Exists(@$"wwwroot/data/{videoId}.mp3")
-            };
-        })
-        .ToListAsync();
+        return core.Search(query, count);
     }
     
     [HttpPost("/api/download")]
@@ -155,32 +136,9 @@ internal class MainController : ControllerBase
     [HttpPost("/api/add-song-to-queue")]
     public async Task AddSongToQueue(string songId, string start = "no")
     {
-        var song = core.AllSongs[songId];
-        if (song == null)
-        {
-            throw new Exception("No such song found");
-        }
-
-        if (start == "yes" && core.SongsQueue.Any())
-        {
-            core.SongsQueue.Insert(1, songId);
-        }
-        else
-        {
-            core.SongsQueue.Add(songId);
-        }
-
-        if (core.SongsQueue.Count == 1)
-        {
-            await core.SendToPlayer(new
-            {
-                actionId = "new_song",
-                song = core.AllSongs[core.SongsQueue[0]]
-            });
-        }
-
-        await core.UpdateSongsAsync();
+        await core.AddSongToQueue(songId, start);
     }
+    
     [HttpPost("/api/remove-song-from-queue")]
     public async Task RemoveSongFromQueue(int songId)
     {
@@ -201,17 +159,7 @@ internal class MainController : ControllerBase
     [HttpPost("/api/next-song")]
     public async Task NextSong()
     {
-        if (core.SongsQueue.Count() < 2)
-        {
-            throw new Exception("Too few songs");
-        }
-        core.SongsQueue.RemoveAt(0);
-        await core.SendToPlayer(new
-        {
-            actionId = "new_song",
-            song = core.AllSongs[core.SongsQueue[0]]
-        });
-        await core.UpdateSongsAsync();
+        await core.NextSong();
     }
     
     [HttpPost("/api/play-pause-song")]
