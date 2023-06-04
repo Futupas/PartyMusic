@@ -6,7 +6,7 @@ using PartyMusic.Models.Core;
 
 namespace PartyMusic.Services;
 
-internal class CoreService
+public class CoreService
 {
     private readonly ILogger<CoreService> logger;
     private readonly YoutubeService youtube;

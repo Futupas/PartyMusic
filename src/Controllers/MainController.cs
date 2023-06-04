@@ -13,7 +13,7 @@ namespace PartyMusic.Controllers;
 
 [ApiController]
 [Route("/api/[controller]")]
-internal class MainController : ControllerBase
+public class MainController : ControllerBase
 {
     private readonly ILogger<MainController> logger;
     private readonly CoreService core;

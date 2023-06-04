@@ -1,6 +1,6 @@
 ﻿namespace PartyMusic.Models.Core;
 
-internal class SongModel
+public class SongModel
 {
     public required String Id { get; set; }
     public int? Duration { get; set; }

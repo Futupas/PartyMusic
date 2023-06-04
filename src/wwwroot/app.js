@@ -66,10 +66,14 @@ socket.onerror = function(error) {
 
 document.getElementById('add-song-btn').onclick = e => {
     document.getElementById('search').classList.remove('hidden');
+    document.getElementById('search').classList.remove('closed');
 }
 
 document.querySelector('#search > .background').onclick = e => {
-    document.getElementById('search').classList.add('hidden');
+    document.getElementById('search').classList.add('closed');
+    setTimeout(() => {
+        document.getElementById('search').classList.add('hidden');
+    }, 200);
 }
 
 document.getElementById('search-song-submit').onclick = async e => {

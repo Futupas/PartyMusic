@@ -34,7 +34,7 @@ document.getElementById('set').onclick = async e => {
             div.innerText = message;
             document.getElementById('console').appendChild(div);
         } else if (data.actionId === 'set_volume') {
-            audio.volume = data.volume / 100;
+            audio.volume = data.volume;
         } else if (data.actionId === 'play_pause_song') {
             if (data.play) {
                 audio.play();

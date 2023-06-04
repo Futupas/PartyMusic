@@ -4,7 +4,7 @@ using YoutubeExplode.Search;
 
 namespace PartyMusic.Services;
 
-internal class YoutubeService
+public class YoutubeService
 {
     private readonly IConfiguration config;
     private readonly ILogger<YoutubeService> logger;
