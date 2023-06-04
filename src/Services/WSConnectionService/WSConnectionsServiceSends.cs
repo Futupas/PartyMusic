@@ -7,52 +7,8 @@ using PartyMusic.Models.WebSocketMessages;
 
 namespace PartyMusic.Services;
 
-internal class WSConnectionsService
+internal partial class WSConnectionsService
 {
-    private WebSocketConnection? _playerWSConnection = null;
-
-    private readonly ILogger<WSConnectionsService> logger;
-    private readonly WSConnectionsService wsService;
-    private readonly IConfiguration config;
-    private readonly SongsService songs;
-    
-    public WSConnectionsService(
-        ILogger<WSConnectionsService> logger,
-        WSConnectionsService wsService,
-        IConfiguration config,
-        SongsService songs
-    )
-    {
-        this.logger = logger;
-        this.wsService = wsService;
-        this.config = config;
-        this.songs = songs;
-    }
-    
-    public WebSocketConnection? PlayerWSConnection
-    {
-        get { return _playerWSConnection; }
-        set
-        {
-            _playerWSConnection = value;
-            if (value is null)
-            {
-                PlayerDisconnected();
-            }
-            else
-            {
-                PlayerConnected();
-            }
-        }
-    }
-
-    public List<WebSocketConnection> WSConnections { get; } = new();
-
-    public void OnMessage(WebSocketConnection connection, ControllerBase controller, string message)
-    {
-        //
-    }
-    
     
     public Task LogToPlayer(string ip, string message)
     {
@@ -85,7 +41,7 @@ internal class WSConnectionsService
     }
     public Task SendInitDataCommand(WebSocketConnection conn)
     {
-        return wsService.SendToUser(conn, new SimpleWSMessageModel()
+        return SendToUser(conn, new SimpleWSMessageModel()
         {
             ActionId = "init",
             Data = new()
@@ -100,7 +56,7 @@ internal class WSConnectionsService
     public Task SendToPlayer(WSMessageModelBase message)
     {
         AssertPlayerIsNotNull();
-        return SendToUser(wsService.PlayerWSConnection!, message);
+        return SendToUser(PlayerWSConnection!, message);
     }
     
     public async Task SendToAllUsers(WSMessageModelBase message)
@@ -127,15 +83,4 @@ internal class WSConnectionsService
         await conn!.WebSocket.SendAsync(segments, WebSocketMessageType.Text, true, new());
     }
 
-    public void PlayerConnected()
-    {
-        //todo implement
-        Console.WriteLine("Player Connected");
-    }
-    
-    public void PlayerDisconnected()
-    {
-        //todo implement
-        Console.WriteLine("Player Disconnected");
-    }
 }

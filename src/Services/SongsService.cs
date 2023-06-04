@@ -13,7 +13,6 @@ internal class SongsService
     public double Volume { get; set; }  = .5;
 
     public SongsService(
-        WSConnectionsService wsService,
         IConfiguration config
     ) {
         
