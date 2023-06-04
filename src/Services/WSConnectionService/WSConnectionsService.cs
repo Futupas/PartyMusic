@@ -7,6 +7,7 @@ using PartyMusic.Models.WebSocketMessages;
 
 namespace PartyMusic.Services;
 
+/// <summary> This is the main class with the majority of logic </summary>
 internal partial class WSConnectionsService
 {
     private WebSocketConnection? _playerWSConnection = null;
@@ -15,21 +16,6 @@ internal partial class WSConnectionsService
     private readonly IConfiguration config;
     private readonly SongsService songs;
     private readonly YoutubeService youtube;
-    private readonly HelpersService helper;
-    
-    public WSConnectionsService(
-        ILogger<WSConnectionsService> logger,
-        IConfiguration config,
-        SongsService songs,
-        YoutubeService youtube,
-        HelpersService helper
-    ) {
-        this.logger = logger;
-        this.config = config;
-        this.songs = songs;
-        this.youtube = youtube;
-        this.helper = helper;
-    }
     
     public WebSocketConnection? PlayerWSConnection
     {
@@ -53,16 +39,27 @@ internal partial class WSConnectionsService
     
     
    
+    public WSConnectionsService(
+        ILogger<WSConnectionsService> logger,
+        IConfiguration config,
+        SongsService songs,
+        YoutubeService youtube
+    ) {
+        this.logger = logger;
+        this.config = config;
+        this.songs = songs;
+        this.youtube = youtube;
+    }
 
     public void PlayerConnected()
     {
         //todo implement
-        Console.WriteLine("Player Connected");
+        logger.LogInformation("Player Connected");
     }
     
     public void PlayerDisconnected()
     {
         //todo implement
-        Console.WriteLine("Player Disconnected");
+        logger.LogWarning("Player Disconnected");
     }
 }
