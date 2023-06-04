@@ -10,9 +10,10 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddSingleton<CoreService>();
 builder.Services.AddSingleton<YoutubeService>();
-builder.Services.AddSingleton<WSConnectionsService>();
-builder.Services.AddSingleton<SongsService>();
+// builder.Services.AddSingleton<WSConnectionsService>();
+// builder.Services.AddSingleton<SongsService>();
 
 var app = builder.Build();
 

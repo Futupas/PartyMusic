@@ -8,44 +8,17 @@ internal class YoutubeService
 {
     private readonly IConfiguration config;
     private readonly ILogger<YoutubeService> logger;
-    private readonly SongsService songs;
     private static readonly Regex videoFromUrlRegex =
         new (@"(youtube\.com\/watch.*([\?\&]v\=(?<videoId>[a-zA-Z0-9\-]*)))|(youtu\.be\/(?<videoId2>[a-zA-Z0-9\-]*))", RegexOptions.Compiled);
+    
     public YoutubeService(
         IConfiguration config,
-        ILogger<YoutubeService> logger,
-        SongsService songs
-    )
-    {
+        ILogger<YoutubeService> logger
+    ) {
         this.config = config;
         this.logger = logger;
-        this.songs = songs;
     }
-    
-    public ValueTask<List<object>> Search(string query, int count = 10)
-    {
-        return SearchYoutube(query, count)
-            .Select(x =>
-            {
-                var videoId = ExtractVideoId(x.Url);
-                songs.AllSongs[videoId] = new()
-                {
-                    Id = videoId,
-                    Title = x.Title,
-                    Duration = (int?)x.Duration?.TotalSeconds,
-                };
-                return (object)new
-                {
-                    x.Title,
-                    x.Url,
-                    Id = videoId,
-                    Duration = (int?)x.Duration?.TotalSeconds,
-                    Exists = System.IO.File.Exists(@$"wwwroot/data/{videoId}.mp3")
-                };
-            })
-            .ToListAsync();
-    }
-    
+
     public async Task Download(string id)
     {
         if (!Directory.Exists("wwwroot/data"))
@@ -67,7 +40,7 @@ internal class YoutubeService
         }
     }
     
-    private IAsyncEnumerable<VideoSearchResult> SearchYoutube(string query, int count = 10)
+    public IAsyncEnumerable<VideoSearchResult> SearchYoutube(string query, int count = 10)
     {
         return new YoutubeClient()
             .Search
@@ -75,7 +48,7 @@ internal class YoutubeService
             .Take(count);
     }
     
-    private static String ExtractVideoId(string url)
+    public string ExtractVideoId(string url)
     {
         var simpleIds = videoFromUrlRegex.Match(url).Groups["videoId"];
         var shortenedIds = videoFromUrlRegex.Match(url).Groups["videoId2"];
