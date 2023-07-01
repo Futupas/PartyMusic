@@ -19,27 +19,6 @@ public class YoutubeService
         this.logger = logger;
     }
 
-    public async Task Download(string id)
-    {
-        if (!Directory.Exists("wwwroot/data"))
-        {
-            Directory.CreateDirectory("wwwroot/data");
-        }
-        
-        var youtube = new YoutubeClient();
-        var streamManifest = await youtube.Videos.Streams.GetManifestAsync(id);
-        var audioStreamInfo = streamManifest.GetAudioOnlyStreams().FirstOrDefault();
-        if (audioStreamInfo != null)
-        {
-            await youtube.Videos.Streams.DownloadAsync(audioStreamInfo, $@"wwwroot/data/{id}.mp3");
-        }
-        else
-        {
-            //todo log into console
-            logger.LogWarning("No audio stream found for the specified video.");
-        }
-    }
-    
     public IAsyncEnumerable<VideoSearchResult> SearchYoutube(string query, int count = 10)
     {
         return new YoutubeClient()

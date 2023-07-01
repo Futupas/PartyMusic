@@ -92,7 +92,6 @@ public class CoreService
                     x.Url,
                     Id = videoId,
                     Duration = (int?)x.Duration?.TotalSeconds,
-                    Exists = File.Exists(@$"wwwroot/data/{videoId}.mp3")
                 };
             })
             .ToListAsync();

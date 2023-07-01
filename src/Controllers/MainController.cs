@@ -121,12 +121,6 @@ public class MainController : ControllerBase
     {
         return core.Search(query, count);
     }
-    
-    [HttpPost("/api/download")]
-    public async Task Download(string id)
-    {
-        await youtube.Download(id);
-    }
 
     [HttpPost("/api/add-song-to-queue")]
     public async Task AddSongToQueue(string songId, string start = "no")

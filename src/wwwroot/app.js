@@ -119,12 +119,6 @@ document.getElementById('search-song-submit').onclick = async e => {
         text.innerText = `${song.title} (${Math.floor(song.duration / 60)}:${song.duration % 60})`;
         div.appendChild(text);
         
-        const btnDownload = document.createElement('button');
-        btnDownload.classList.add('download');
-        // btnDownload.innerText = 'D';
-        btnDownload.appendChild(getImage('/img/download.png', 'PN', false));
-        div.appendChild(btnDownload);
-
         const btnPlayNow = document.createElement('button');
         btnPlayNow.classList.add('play-now');
         // btnPlayNow.innerText = 'PN';
@@ -153,43 +147,6 @@ document.getElementById('search-song-submit').onclick = async e => {
         }
         div.appendChild(btnAddToQueue);
         
-        
-        
-        if (song.exists) {
-            btnDownload.classList.add('hidden');
-            btnPlayNow.classList.remove('hidden');
-            btnAddToQueue.classList.remove('hidden');
-        } else {
-            btnDownload.classList.remove('hidden');
-            btnPlayNow.classList.add('hidden');
-            btnAddToQueue.classList.add('hidden');
-        }
-        
-        btnDownload.onclick = async e => {
-            // const downloadResp = await fetch('/api/download', {
-            //     method: 'POST',
-            //     headers: {
-            //         'Accept': 'application/json',
-            //         'Content-Type': 'application/json'
-            //     },
-            //     body: JSON.stringify({ id: songId }),
-            // });
-            btnDownload.querySelector('img').src = '/img/loading.png';
-            btnDownload.querySelector('img').classList.add('rotating');
-            const downloadResp = await fetch('/api/download?id=' + songId, {
-                method: 'POST',
-            });
-            if (downloadResp.ok) {
-                btnDownload.classList.add('hidden');
-                btnPlayNow.classList.remove('hidden');
-                btnAddToQueue.classList.remove('hidden');
-            } else {
-                btnDownload.querySelector('img').src = '/img/download.png';
-                btnDownload.querySelector('img').classList.remove('rotating');
-                alert('Couldn\'t download song.');
-            }
-        }
-
         resultsDiv.appendChild(div);
     }
     document.getElementById('search-song-submit').classList.remove('loading');

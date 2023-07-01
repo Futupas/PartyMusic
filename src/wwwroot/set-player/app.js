@@ -1,11 +1,6 @@
 'use strict';
 
-const audio = new Audio();
-audio.autoplay = true;
-
 document.getElementById('set').onclick = async e => {
-    // new QRCode(document.getElementById("qrcode"), "https://webisora.com");
-    // new QRCode(document.querySelector("#qrcode > div"), "https://webisora.com");
     const qrcode = new QRCode(document.querySelector("#qrcode > div"), {
         text: `http://${window.location.host}/index.html`,
         width: 512,
@@ -46,14 +41,10 @@ document.getElementById('set').onclick = async e => {
         } else if (data.actionId === 'restart_song') {
             player.seekTo(0);
             player.playVideo();
-            // audio.currentTime = 0;
-            // audio.play();
             fetch('/api/play-pause-song?play=yes', { method: 'POST' });
         } else if (data.actionId === 'new_song') {
             player.loadVideoById(data.song.Id);
             player.playVideo();
-            // audio.src = `/data/${data.song.Id}.mp3`;
-            // audio.play();
             fetch('/api/play-pause-song?play=yes', { method: 'POST' });
         } else {
             console.warn('Unknown actionId', data.actionId);
@@ -64,8 +55,6 @@ document.getElementById('set').onclick = async e => {
         if (event.wasClean) {
             console.log(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
         } else {
-            // e.g. server process killed or network down
-            // event.code is usually 1006 in this case
             alert('[close] Connection died');
         }
     };
@@ -74,15 +63,6 @@ document.getElementById('set').onclick = async e => {
         alert(`[error]`);
         console.error(error);
     };
-
-    audio.onended = async e => {
-        const resp = await fetch('/api/next-song', {
-            method: 'POST',
-        });
-        if (!resp.ok) {
-            alert('Couldn\'t play next song.');
-        }
-    }
 
 }
 
@@ -107,48 +87,19 @@ function getPlayer() {
                 },
                 events: {
                     'onReady': e => resolve(player),
-                    // 'onStateChange': onPlayerStateChange
+                    'onStateChange': async e => {
+                        if (e.data === YT.PlayerState.ENDED) { // 0
+                            const resp = await fetch('/api/next-song', {
+                                method: 'POST',
+                            });
+                            if (!resp.ok) {
+                                alert('Couldn\'t play next song.');
+                            }
+
+                        }
+                    }
                 }
             });
-            // resolve(player);
         }
-
-        // // 3. This function creates an <iframe> (and YouTube player)
-        // //    after the API code downloads.
-        // const player = new YT.Player('player', {
-        //     height: '390',
-        //     width: '640',
-        //     videoId: 'M7lc1UVf-VE',
-        //     playerVars: {
-        //         'playsinline': 1
-        //     },
-        //     events: {
-        //         'onReady': onPlayerReady,
-        //         // 'onStateChange': onPlayerStateChange
-        //     }
-        // });
-
-        // 4. The API will call this function when the video player is ready.
-        
     });
 }
-
-// // let player;
-// let resolvePlayer;
-//
-// function onYouTubeIframeAPIReady() {
-//     const player = new YT.Player('player', {
-//         height: '390',
-//         width: '640',
-//         videoId: 'M7lc1UVf-VE',
-//         playerVars: {
-//             'playsinline': 1
-//         },
-//         events: {
-//             'onReady': onPlayerReady,
-//             'onStateChange': onPlayerStateChange
-//         }
-//     });
-//     resolvePlayer(player);
-// }
-
