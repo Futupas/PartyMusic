@@ -20,6 +20,8 @@ document.getElementById('set').onclick = async e => {
 
 
     const socket = new WebSocket(`ws://${window.location.host}/api/ws?isPlayer=yes`);
+    
+    const player = await getPlayer();
 
     socket.onopen = function(e) {
         console.log("[open] Connection established");
@@ -34,20 +36,24 @@ document.getElementById('set').onclick = async e => {
             div.innerText = message;
             document.getElementById('console').appendChild(div);
         } else if (data.actionId === 'set_volume') {
-            audio.volume = data.volume;
+            player.setVolume(data.volume * 100);
         } else if (data.actionId === 'play_pause_song') {
             if (data.play) {
-                audio.play();
+                player.playVideo();
             } else {
-                audio.pause();
+                player.pauseVideo();
             }
         } else if (data.actionId === 'restart_song') {
-            audio.currentTime = 0;
-            audio.play();
+            player.seekTo(0);
+            player.playVideo();
+            // audio.currentTime = 0;
+            // audio.play();
             fetch('/api/play-pause-song?play=yes', { method: 'POST' });
         } else if (data.actionId === 'new_song') {
-            audio.src = `/data/${data.song.Id}.mp3`;
-            audio.play();
+            player.loadVideoById(data.song.Id);
+            player.playVideo();
+            // audio.src = `/data/${data.song.Id}.mp3`;
+            // audio.play();
             fetch('/api/play-pause-song?play=yes', { method: 'POST' });
         } else {
             console.warn('Unknown actionId', data.actionId);
@@ -80,4 +86,69 @@ document.getElementById('set').onclick = async e => {
 
 }
 
+/** @returns Promise<YT.Player> */
+function getPlayer() {
+    return new Promise((resolve, reject) => {
+        // 2. This code loads the IFrame Player API code asynchronously.
+        const tag = document.createElement('script');
+
+        tag.src = "https://www.youtube.com/iframe_api";
+        const firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        
+        
+        window.onYouTubeIframeAPIReady = () => {
+            const player = new YT.Player('player', {
+                height: '390',
+                width: '640',
+                videoId: 'M7lc1UVf-VE',
+                playerVars: {
+                    'playsinline': 1
+                },
+                events: {
+                    'onReady': e => resolve(player),
+                    // 'onStateChange': onPlayerStateChange
+                }
+            });
+            // resolve(player);
+        }
+
+        // // 3. This function creates an <iframe> (and YouTube player)
+        // //    after the API code downloads.
+        // const player = new YT.Player('player', {
+        //     height: '390',
+        //     width: '640',
+        //     videoId: 'M7lc1UVf-VE',
+        //     playerVars: {
+        //         'playsinline': 1
+        //     },
+        //     events: {
+        //         'onReady': onPlayerReady,
+        //         // 'onStateChange': onPlayerStateChange
+        //     }
+        // });
+
+        // 4. The API will call this function when the video player is ready.
+        
+    });
+}
+
+// // let player;
+// let resolvePlayer;
+//
+// function onYouTubeIframeAPIReady() {
+//     const player = new YT.Player('player', {
+//         height: '390',
+//         width: '640',
+//         videoId: 'M7lc1UVf-VE',
+//         playerVars: {
+//             'playsinline': 1
+//         },
+//         events: {
+//             'onReady': onPlayerReady,
+//             'onStateChange': onPlayerStateChange
+//         }
+//     });
+//     resolvePlayer(player);
+// }
 
