@@ -9,7 +9,7 @@ public class YoutubeService
     private readonly IConfiguration config;
     private readonly ILogger<YoutubeService> logger;
     private static readonly Regex videoFromUrlRegex =
-        new (@"(youtube\.com\/watch.*([\?\&]v\=(?<videoId>[a-zA-Z0-9\-]*)))|(youtu\.be\/(?<videoId2>[a-zA-Z0-9\-]*))", RegexOptions.Compiled);
+        new (@"(youtube\.com\/watch.*([\?\&]v\=(?<videoId>[a-zA-Z0-9\-_]*)))|(youtu\.be\/(?<videoId2>[a-zA-Z0-9\-_]*))", RegexOptions.Compiled);
     
     public YoutubeService(
         IConfiguration config,
