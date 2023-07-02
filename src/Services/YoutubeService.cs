@@ -9,7 +9,7 @@ public class YoutubeService
     private readonly IConfiguration config;
     private readonly ILogger<YoutubeService> logger;
     private static readonly Regex videoFromUrlRegex =
-        new (@"(youtube\.com\/watch.*([\?\&]v\=(?<videoId>[a-zA-Z0-9\-]*)))|(youtu\.be\/(?<videoId2>[a-zA-Z0-9\-]*))", RegexOptions.Compiled);
+        new (@"(youtube\.com\/watch.*([\?\&]v\=(?<videoId>[a-zA-Z0-9\-_]*)))|(youtu\.be\/(?<videoId2>[a-zA-Z0-9\-_]*))", RegexOptions.Compiled);
     
     public YoutubeService(
         IConfiguration config,
@@ -28,7 +28,7 @@ public class YoutubeService
         
         var youtube = new YoutubeClient();
         var streamManifest = await youtube.Videos.Streams.GetManifestAsync(id);
-        var audioStreamInfo = streamManifest.GetAudioOnlyStreams().FirstOrDefault();
+        var audioStreamInfo = streamManifest.GetAudioOnlyStreams().MaxBy(x => x.Bitrate);
         if (audioStreamInfo != null)
         {
             await youtube.Videos.Streams.DownloadAsync(audioStreamInfo, $@"wwwroot/data/{id}.mp3");
