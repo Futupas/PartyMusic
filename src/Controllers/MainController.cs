@@ -90,6 +90,7 @@ public class MainController : ControllerBase
             var receiveResult = await webSocket.ReceiveAsync(segments, cancellationTokenSource.Token);
             var receivedMessageCount = receiveResult.Count;
             var segmentsReal = segments[0..receivedMessageCount];
+            
             if (receiveResult.MessageType == WebSocketMessageType.Text)
             {
                 core.Log(this, "Received webhook: " + Encoding.UTF8.GetString(segmentsReal));

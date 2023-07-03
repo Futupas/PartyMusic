@@ -16,6 +16,8 @@ public class CoreService
     public WebSocketConnection? PlayerWSConnection { get; set; } = null;
     public List<WebSocketConnection> WSConnections { get; } = new();
 
+    public bool Playing { get; set; } = false;
+    public double Volume { get; set; } = .5;
 
     public CoreService(
         ILogger<CoreService> logger,
@@ -25,9 +27,6 @@ public class CoreService
         this.logger = logger;
         this.youtube = youtube;
     }
-    
-    public bool Playing { get; set; } = false;
-    public double Volume { get; set; } = 50.0;
     
     
     public async Task AddSongToQueue(string songId, string start = "no")
