@@ -13,6 +13,7 @@ public class MainController : ControllerBase
     private readonly ILogger<MainController> logger;
     private readonly CoreService core;
     private readonly YoutubeService youtube;
+    private readonly WifiAccessService wifiAccess;
     
     const int MAX_WS_RECEIVE_BYTES_COUNT = 100;
 
@@ -21,11 +22,13 @@ public class MainController : ControllerBase
     public MainController(
         ILogger<MainController> logger,
         CoreService core,
-        YoutubeService youtube
+        YoutubeService youtube,
+        WifiAccessService wifiAccess
     ) {
         this.logger = logger;
         this.core = core;
         this.youtube = youtube;
+        this.wifiAccess = wifiAccess;
     }
 
     
@@ -90,15 +93,8 @@ public class MainController : ControllerBase
             var receiveResult = await webSocket.ReceiveAsync(segments, cancellationTokenSource.Token);
             var receivedMessageCount = receiveResult.Count;
             var segmentsReal = segments[0..receivedMessageCount];
-            if (receiveResult.MessageType == WebSocketMessageType.Text)
-            {
-                core.Log(this, "Received webhook: " + Encoding.UTF8.GetString(segmentsReal));
-            }
-            else
-            {
-                core.Log(this, "Received webhook message type: " + receiveResult.MessageType);
-            }
-            
+
+            OnWebSocketMessageReceive(webSocket, receiveResult.MessageType, segmentsReal);
         }
         
         core.WSConnections.Remove(myWSConnection);
@@ -177,6 +173,19 @@ public class MainController : ControllerBase
             actionId = "set_volume",
             volume = volume < 0 ? 0 : volume > 1 ? 1 : volume,
         });
+    }
+
+    [HttpPost("/api/receive-message")]
+    public void OnWebSocketMessageReceive(WebSocket webSocket,WebSocketMessageType messageType, ArraySegment<byte> message)
+    {
+        if (messageType == WebSocketMessageType.Text)
+        {
+            core.Log(this, "Received webhook: " + Encoding.UTF8.GetString(message));
+        }
+        else
+        {
+            core.Log(this, "Received webhook message type: " + messageType);
+        }
     }
 }
 

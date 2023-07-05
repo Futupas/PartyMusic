@@ -12,6 +12,7 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddSingleton<CoreService>();
 builder.Services.AddSingleton<YoutubeService>();
+builder.Services.AddSingleton<WifiAccessService>();
 
 var app = builder.Build();
 
