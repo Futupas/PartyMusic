@@ -1,5 +1,6 @@
 using System.Net.WebSockets;
 using System.Text;
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using PartyMusic.Models.Core;
 using PartyMusic.Services;
@@ -13,6 +14,7 @@ public class MainController : ControllerBase
     private readonly ILogger<MainController> logger;
     private readonly CoreService core;
     private readonly YoutubeService youtube;
+    private readonly WifiAccessService wifiAccess;
     
     const int MAX_WS_RECEIVE_BYTES_COUNT = 100;
 
@@ -21,11 +23,13 @@ public class MainController : ControllerBase
     public MainController(
         ILogger<MainController> logger,
         CoreService core,
-        YoutubeService youtube
+        YoutubeService youtube,
+        WifiAccessService wifiAccess
     ) {
         this.logger = logger;
         this.core = core;
         this.youtube = youtube;
+        this.wifiAccess = wifiAccess;
     }
 
     
@@ -90,16 +94,8 @@ public class MainController : ControllerBase
             var receiveResult = await webSocket.ReceiveAsync(segments, cancellationTokenSource.Token);
             var receivedMessageCount = receiveResult.Count;
             var segmentsReal = segments[0..receivedMessageCount];
-            
-            if (receiveResult.MessageType == WebSocketMessageType.Text)
-            {
-                core.Log(this, "Received webhook: " + Encoding.UTF8.GetString(segmentsReal));
-            }
-            else
-            {
-                core.Log(this, "Received webhook message type: " + receiveResult.MessageType);
-            }
-            
+
+            OnWebSocketMessageReceive(myWSConnection, receiveResult.MessageType, segmentsReal);
         }
         
         core.WSConnections.Remove(myWSConnection);
@@ -178,6 +174,55 @@ public class MainController : ControllerBase
             actionId = "set_volume",
             volume = volume < 0 ? 0 : volume > 1 ? 1 : volume,
         });
+    }
+
+    
+    private async Task OnWebSocketMessageReceive(WebSocketConnection wsConnection, WebSocketMessageType messageType, ArraySegment<byte> message)
+    {
+        if (messageType != WebSocketMessageType.Text)
+        {
+            core.Log(this, "Received webhook message type: " + messageType);
+            return;
+        }
+        
+        var data = JsonSerializer.Deserialize<Dictionary<string, string>>(Encoding.UTF8.GetString(message));
+
+        if (!data.TryGetValue("actionId", out var actionId) || actionId != "post")
+        {
+            throw new Exception("Bad WS Data: actionId is not present or it is incorrect.");
+        }
+        if (!data.TryGetValue("postType", out var postType) || string.IsNullOrEmpty(postType))
+        {
+            throw new Exception("Bad WS Data: postType is null or empty.");
+        }
+        if (!data.TryGetValue("requestId", out var requestId) || string.IsNullOrEmpty(requestId))
+        {
+            throw new Exception("Bad WS Data: requestId is null or empty.");
+        }
+        
+        //Just 4 test
+
+        switch (postType)
+        {
+            case "test":
+                await core.SendToUser(wsConnection, new
+                {
+                    actionId,
+                    requestId,
+                    data = "Punks not dead!",
+                    whereFrom = "test",
+                });
+                break;
+            default:
+                await core.SendToUser(wsConnection, new
+                {
+                    actionId,
+                    requestId,
+                    whereFrom = "default",
+                });
+                break;
+        }
+        
     }
 }
 
