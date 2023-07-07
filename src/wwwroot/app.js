@@ -55,6 +55,8 @@ socket.onmessage = function(event) {
         }
     } else if (data.actionId === 'set_volume') {
         document.getElementById('song-volume').value = data.volume;
+    } else if (data.actionId === 'post') {
+        onPostWSReceived(data);
     } else {
         console.warn('Unknown actionId', event.data.actionId);
     }
@@ -166,14 +168,6 @@ document.getElementById('search-song-submit').onclick = async e => {
         }
         
         btnDownload.onclick = async e => {
-            // const downloadResp = await fetch('/api/download', {
-            //     method: 'POST',
-            //     headers: {
-            //         'Accept': 'application/json',
-            //         'Content-Type': 'application/json'
-            //     },
-            //     body: JSON.stringify({ id: songId }),
-            // });
             btnDownload.querySelector('img').src = '/img/loading.png';
             btnDownload.querySelector('img').classList.add('rotating');
             const downloadResp = await fetch('/api/download?id=' + songId, {
