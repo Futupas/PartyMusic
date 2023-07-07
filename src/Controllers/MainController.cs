@@ -1,5 +1,6 @@
 using System.Net.WebSockets;
 using System.Text;
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using PartyMusic.Models.Core;
 using PartyMusic.Services;
@@ -94,7 +95,7 @@ public class MainController : ControllerBase
             var receivedMessageCount = receiveResult.Count;
             var segmentsReal = segments[0..receivedMessageCount];
 
-            OnWebSocketMessageReceive(webSocket, receiveResult.MessageType, segmentsReal);
+            OnWebSocketMessageReceive(myWSConnection, receiveResult.MessageType, segmentsReal);
         }
         
         core.WSConnections.Remove(myWSConnection);
@@ -175,17 +176,53 @@ public class MainController : ControllerBase
         });
     }
 
-    [HttpPost("/api/receive-message")]
-    public void OnWebSocketMessageReceive(WebSocket webSocket,WebSocketMessageType messageType, ArraySegment<byte> message)
+    
+    private async Task OnWebSocketMessageReceive(WebSocketConnection wsConnection, WebSocketMessageType messageType, ArraySegment<byte> message)
     {
-        if (messageType == WebSocketMessageType.Text)
-        {
-            core.Log(this, "Received webhook: " + Encoding.UTF8.GetString(message));
-        }
-        else
+        if (messageType != WebSocketMessageType.Text)
         {
             core.Log(this, "Received webhook message type: " + messageType);
+            return;
         }
+        
+        var data = JsonSerializer.Deserialize<Dictionary<string, string>>(Encoding.UTF8.GetString(message));
+
+        if (!data.TryGetValue("actionId", out var actionId) || actionId != "post")
+        {
+            throw new Exception("Bad WS Data: actionId is not present or it is incorrect.");
+        }
+        if (!data.TryGetValue("postType", out var postType) || string.IsNullOrEmpty(postType))
+        {
+            throw new Exception("Bad WS Data: postType is null or empty.");
+        }
+        if (!data.TryGetValue("requestId", out var requestId) || string.IsNullOrEmpty(requestId))
+        {
+            throw new Exception("Bad WS Data: requestId is null or empty.");
+        }
+        
+        //Just 4 test
+
+        switch (postType)
+        {
+            case "test":
+                await core.SendToUser(wsConnection, new
+                {
+                    actionId,
+                    requestId,
+                    data = "Punks not dead!",
+                    whereFrom = "test",
+                });
+                break;
+            default:
+                await core.SendToUser(wsConnection, new
+                {
+                    actionId,
+                    requestId,
+                    whereFrom = "default",
+                });
+                break;
+        }
+        
     }
 }
 
