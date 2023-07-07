@@ -36,4 +36,5 @@ function wsFetch(socket, postType, data) {
 function onPostWSReceived(data) {
     const resolve = wsFetchResolvers[data.requestId];
     resolve && resolve(data);
+    wsFetchResolvers[data.requestId] = null;
 }

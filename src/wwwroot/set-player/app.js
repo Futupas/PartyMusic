@@ -49,6 +49,8 @@ document.getElementById('set').onclick = async e => {
             audio.src = `/data/${data.song.Id}.mp3`;
             audio.play();
             fetch('/api/play-pause-song?play=yes', { method: 'POST' });
+        } else if (data.actionId === 'post') {
+            onPostWSReceived(data);
         } else {
             console.warn('Unknown actionId', data.actionId);
         }
