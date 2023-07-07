@@ -113,11 +113,11 @@ public class MainController : ControllerBase
     }
 
 
-    [HttpGet("/api/search")]
-    public ValueTask<List<object>> Search(string query, int count = 10)
-    {
-        return core.Search(query, count);
-    }
+    // [HttpGet("/api/search")]
+    // public ValueTask<List<object>> Search(string query, int count = 10)
+    // {
+    //     return core.Search(query, count);
+    // }
     
     [HttpPost("/api/download")]
     public async Task Download(string id)
@@ -213,6 +213,17 @@ public class MainController : ControllerBase
                     whereFrom = "test",
                 });
                 break;
+            case "search-song":
+                var query = data["query"];
+                var count = int.Parse(data["count"]);
+                
+                await core.SendToUser(wsConnection, new
+                {
+                    actionId,
+                    requestId,
+                    data = await core.Search(query, count)
+                });
+                break;
             default:
                 await core.SendToUser(wsConnection, new
                 {
@@ -223,6 +234,12 @@ public class MainController : ControllerBase
                 break;
         }
         
+        
+    }
+    [HttpGet("/api/search")]
+    public ValueTask<List<object>> Search(string query, int count = 10)
+    {
+        return core.Search(query, count);
     }
 }
 
