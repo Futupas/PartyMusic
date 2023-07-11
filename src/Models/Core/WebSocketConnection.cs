@@ -4,7 +4,7 @@ namespace PartyMusic.Models.Core;
 
 public class WebSocketConnection
 {
-    public required WebSocket WebSocket { get; set; }
-    public Task? Task { get; set; }
-    public required CancellationTokenSource CancellationTokenSource { get; set; }
+    public required WebSocket WebSocket { get; init; }
+    public Task? Task { get; init; }
+    public required CancellationTokenSource CancellationTokenSource { get; init; }
 }
