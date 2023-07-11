@@ -236,10 +236,10 @@ public class MainController : ControllerBase
         
         
     }
-    [HttpGet("/api/search")]
-    public ValueTask<List<object>> Search(string query, int count = 10)
-    {
-        return core.Search(query, count);
-    }
+    // [HttpGet("/api/search")]
+    // public ValueTask<List<object>> Search(string query, int count = 10)
+    // {
+    //     return core.Search(query, count);
+    // }
 }
 

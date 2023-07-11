@@ -97,15 +97,17 @@ document.getElementById('search-song-submit').onclick = async e => {
         return;
     }
     document.getElementById('search-song-submit').classList.add('loading');
-    
-    const resp = await fetch('/api/search?query=' + encodeURI(query));
-    if (!resp.ok) {
-        console.error(resp);
-        alert('Couldn\'t fetch');
-        document.getElementById('search-song-submit').classList.remove('loading');
-        return;
-    }
-    const data = await resp.json();
+
+    const resp = await wsFetch(socket, 'search-song', { query, count: 10  });
+    // const resp = await fetch('/api/search?query=' + encodeURI(query));
+    // if (!resp.ok) {
+    //     console.error(resp);
+    //     alert('Couldn\'t fetch');
+    //     document.getElementById('search-song-submit').classList.remove('loading');
+    //     return;
+    // }
+    // const data = await resp.json();
+    const data = resp.data;
     
     const resultsDiv = document.querySelector('#search > .main > .results');
     resultsDiv.innerHTML = '';
