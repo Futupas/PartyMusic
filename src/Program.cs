@@ -14,6 +14,17 @@ builder.Services.AddSingleton<CoreService>();
 builder.Services.AddSingleton<YoutubeService>();
 builder.Services.AddSingleton<WifiAccessService>();
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAnyOrigin",
+        b =>
+        {
+            b.AllowAnyOrigin()
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+        });
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -32,6 +43,8 @@ app.MapControllers();
 app.UseStaticFiles();
 
 app.UseWebSockets();
+
+app.UseCors("AllowAnyOrigin");
 
 app.Run();
 
