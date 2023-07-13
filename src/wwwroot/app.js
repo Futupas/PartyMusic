@@ -28,9 +28,10 @@ socket.onmessage = function(event) {
             removeButton.classList.add('remove');
             // removeButton.innerHTML = '&#128465;';
             removeButton.onclick = async e => {
-                await fetch('/api/remove-song-from-queue?songId=' + newI, {
-                    method: 'POST',
-                });
+                await wsFetch(socket,("remove-song-from-queue",{"removeSongId":newI}))
+                // await fetch('/api/remove-song-from-queue?songId=' + newI, {
+                //     method: 'POST',
+                // });
                 if (!downloadResp.ok) {
                     alert('Couldn\'t remove song from queue.');
                 }
@@ -55,6 +56,8 @@ socket.onmessage = function(event) {
         }
     } else if (data.actionId === 'set_volume') {
         document.getElementById('song-volume').value = data.volume;
+    } else if (data.actionId === 'post') {
+        onPostWSReceived(data);
     } else {
         console.warn('Unknown actionId', event.data.actionId);
     }
@@ -96,14 +99,9 @@ document.getElementById('search-song-submit').onclick = async e => {
     }
     document.getElementById('search-song-submit').classList.add('loading');
     
-    const resp = await fetch('/api/search?query=' + encodeURI(query));
-    if (!resp.ok) {
-        console.error(resp);
-        alert('Couldn\'t fetch');
-        document.getElementById('search-song-submit').classList.remove('loading');
-        return;
-    }
-    const data = await resp.json();
+    const resp = await wsFetch(socket,"search",{"query":query ,"count":"10"});
+    // const resp = await fetch('/api/search?query=' + encodeURI(query));
+    const data = resp.data;
     
     const resultsDiv = document.querySelector('#search > .main > .results');
     resultsDiv.innerHTML = '';
@@ -130,9 +128,11 @@ document.getElementById('search-song-submit').onclick = async e => {
         // btnPlayNow.innerText = 'PN';
         btnPlayNow.appendChild(getImage('/img/playlist.png', 'PN', true));
         btnPlayNow.onclick = async e => {
-            const downloadResp = await fetch('/api/add-song-to-queue?start=yes&songId=' + songId, {
-                method: 'POST',
-            });
+            
+            // const downloadResp = await ('/api/add-song-to-queue?start=yes&songId=' + songId, {
+            //     method: 'POST',
+            // });
+            const downloadResp = await wsFetch(socket, ("add-song-to-queue"), { "songId": songId, "start": "no", method: 'POST' });
             if (!downloadResp.ok) {
                 alert('Couldn\'t add song to queue.');
             }
@@ -144,9 +144,10 @@ document.getElementById('search-song-submit').onclick = async e => {
         // btnAddToQueue.innerText = 'A2Q';
         btnAddToQueue.appendChild(getImage('/img/playlist.png', 'PN', false));
         btnAddToQueue.onclick = async e => {
-            const downloadResp = await fetch('/api/add-song-to-queue?start=no&songId=' + songId, {
-                method: 'POST',
-            });
+            const downloadResp = await wsFetch(socket, ("add-song-to-queue"), { "songId": songId, "start": "no", method: 'POST' });
+            // const downloadResp = await fetch('/api/add-song-to-queue?start=no&songId=' + songId, {
+            //     method: 'POST',
+            // });
             if (!downloadResp.ok) {
                 alert('Couldn\'t add song to queue.');
             }
@@ -166,19 +167,12 @@ document.getElementById('search-song-submit').onclick = async e => {
         }
         
         btnDownload.onclick = async e => {
-            // const downloadResp = await fetch('/api/download', {
-            //     method: 'POST',
-            //     headers: {
-            //         'Accept': 'application/json',
-            //         'Content-Type': 'application/json'
-            //     },
-            //     body: JSON.stringify({ id: songId }),
-            // });
             btnDownload.querySelector('img').src = '/img/loading.png';
             btnDownload.querySelector('img').classList.add('rotating');
-            const downloadResp = await fetch('/api/download?id=' + songId, {
-                method: 'POST',
-            });
+            // const downloadResp = await fetch('/api/download?id=' + songId, {
+            //     method: 'POST',
+            // });
+            const downloadResp = await wsFetch(socket, ("download"), { "id": songId, method: 'POST' });
             if (downloadResp.ok) {
                 btnDownload.classList.add('hidden');
                 btnPlayNow.classList.remove('hidden');
@@ -207,34 +201,38 @@ function getImage(src, alt, upsideDown = false) {
 }
 
 document.querySelector('#current > .restart').onclick = async e => {
-    const resp = await fetch('/api/restart-song', {
-        method: 'POST',
-    });
+    const resp = await wsFetch(socket, ("restart-song"), { method: 'POST' });
+    // const resp = await fetch('/api/restart-song', {
+    //     method: 'POST',
+    // });
     if (!resp.ok) {
         alert('Couldn\'t restart song.');
     }
 }
 document.querySelector('#current > .pause').onclick = async e => {
-    const resp = await fetch('/api/play-pause-song', {
-        method: 'POST',
-    });
+    const resp = await wsFetch(socket,("play-pause-song"),{"play":play,method:'POST'});
+    // const resp = await fetch('/api/play-pause-song', {
+    //     method: 'POST',
+    // });
     if (!resp.ok) {
         alert('Couldn\'t play/pause song.');
     }
 }
 document.querySelector('#current > .next-song').onclick = async e => {
-    const resp = await fetch('/api/next-song', {
-        method: 'POST',
-    });
+    const resp = await wsFetch(socket, ("next-song"), {method:'POST'});
+    // const resp = await fetch('/api/next-song', {
+    //     method: 'POST',
+    // });
     if (!resp.ok) {
         alert('Couldn\'t play next song.');
     }
 }
 document.getElementById('song-volume').oninput = async e => {
     const volume = document.getElementById('song-volume').value;
-    const resp = await fetch('/api/set-volume?volume=' + volume, {
-        method: 'POST',
-    });
+    const resp = await wsFetch(socket, ("set-volume"), { "volume": volume, method: 'POST'});
+    // const resp = await fetch('/api/set-volume?volume=' + volume, {
+    //     method: 'POST',
+    // });
     if (!resp.ok) {
         alert('Couldn\'t change volume song.');
     }

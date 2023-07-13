@@ -44,11 +44,13 @@ document.getElementById('set').onclick = async e => {
         } else if (data.actionId === 'restart_song') {
             audio.currentTime = 0;
             audio.play();
-            fetch('/api/play-pause-song?play=yes', { method: 'POST' });
+            wsFetch(socket, ("play-pause-song"), { "play": play, method: 'POST' });
+            //fetch('/api/play-pause-song?play=yes', { method: 'POST' });
         } else if (data.actionId === 'new_song') {
             audio.src = `/data/${data.song.Id}.mp3`;
             audio.play();
-            fetch('/api/play-pause-song?play=yes', { method: 'POST' });
+            wsFetch(socket, ("play-pause-song"), { "play": play, method: 'POST' });
+            //fetch('/api/play-pause-song?play=yes', { method: 'POST' });
         } else {
             console.warn('Unknown actionId', data.actionId);
         }

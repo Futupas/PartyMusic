@@ -111,71 +111,7 @@ public class MainController : ControllerBase
         myWSConnection = null;
         core.Log(this, "WS disconnected");
     }
-
-
-    [HttpGet("/api/search")]
-    public ValueTask<List<object>> Search(string query, int count = 10)
-    {
-        return core.Search(query, count);
-    }
     
-    [HttpPost("/api/download")]
-    public async Task Download(string id)
-    {
-        await youtube.Download(id);
-    }
-
-    [HttpPost("/api/add-song-to-queue")]
-    public async Task AddSongToQueue(string songId, string start = "no")
-    {
-        await core.AddSongToQueue(songId, start);
-    }
-    
-    [HttpPost("/api/remove-song-from-queue")]
-    public async Task RemoveSongFromQueue(int songId)
-    {
-        core.SongsQueue.RemoveAt(songId);
-        await core.UpdateSongsAsync();
-    }
-    
-    
-    [HttpPost("/api/restart-song")]
-    public Task RestartSong()
-    {
-        return core.SendToPlayer(new
-        {
-            actionId = "restart_song",
-        });
-    }
-    
-    [HttpPost("/api/next-song")]
-    public async Task NextSong()
-    {
-        await core.NextSong();
-    }
-    
-    [HttpPost("/api/play-pause-song")]
-    public Task PlayPauseSong(string? play)
-    {
-        core.Playing = (play == "yes") ? true : (play == "no") ? false : !core.Playing;
-        return core.SendToAllUsers(new
-        {
-            actionId = "play_pause_song",
-            play = core.Playing,
-        });
-    }
-    
-    [HttpPost("/api/set-volume")]
-    public Task SetVolume(double volume = .5)
-    {
-        core.Volume = volume;
-        return core.SendToAllUsers(new
-        {
-            actionId = "set_volume",
-            volume = volume < 0 ? 0 : volume > 1 ? 1 : volume,
-        });
-    }
-
     
     private async Task OnWebSocketMessageReceive(WebSocketConnection wsConnection, WebSocketMessageType messageType, ArraySegment<byte> message)
     {
@@ -213,6 +149,77 @@ public class MainController : ControllerBase
                     whereFrom = "test",
                 });
                 break;
+            case "search":
+                var query = data["query"]; var count = int.Parse(data["count"]);
+                await core.SendToUser(wsConnection, new
+                {
+                    actionId,
+                    requestId,
+                    data = await core.Search(query, count)
+                });
+                break;
+            case "add-song-to-queue":
+                var songId = data["songId"]; var start = data["start"];
+                await core.SendToUser(wsConnection, new
+                {
+                    actionId,
+                    requestId,
+                    });
+                await core.AddSongToQueue(songId, start);
+                break;
+            case "download":
+                var id = data["songId"];
+                await core.SendToUser(wsConnection, new
+                {
+                    actionId,
+                    requestId,
+                });
+                await youtube.Download(id);
+                break;
+            case "restart-song":
+                await core.SendToUser(wsConnection, new
+                {
+                    actionId = "restart_song",
+                    requestId,
+                });
+                break;
+            case "play-pause-song":
+                var play = data["play"];
+                core.Playing = (play == "yes") ? true : (play == "no") ? false : !core.Playing;
+                await core.SendToUser(wsConnection, new
+                {
+                    actionId = "play_pause_song",
+                    requestId,
+                    play = core.Playing
+                });
+                break;
+            case "next-song":
+                await core.SendToUser(wsConnection, new
+                {
+                    actionId,
+                    requestId,
+                });
+                await core.NextSong();
+                break;
+            case "set-volume":
+                var volume = int.Parse(data["volume"]);
+                await core.SendToUser(wsConnection, new
+                {
+                    actionId = "set_volume",
+                    requestId,
+                    volume = volume < 0 ? 0 : volume > 1 ? 1 : volume
+                });
+                break;
+            case "remove-song-from-queue":
+                var removeSongId = int.Parse(data["removeSongId"]);
+                await core.SendToUser(wsConnection, new
+                {
+                    actionId,
+                    requestId,
+                });
+                core.SongsQueue.RemoveAt(removeSongId);
+                await core.UpdateSongsAsync();
+                break;
             default:
                 await core.SendToUser(wsConnection, new
                 {
@@ -222,7 +229,70 @@ public class MainController : ControllerBase
                 });
                 break;
         }
-        
     }
+
+    //[HttpPost("/api/play-pause-song")]
+    //public Task PlayPauseSong(string? play)
+    //{
+    //    core.Playing = (play == "yes") ? true : (play == "no") ? false : !core.Playing;
+    //    return core.SendToAllUsers(new
+    //    {
+    //        actionId = "play_pause_song",
+    //        play = core.Playing,
+    //    });
+    //}
+
+    //[HttpPost("/api/remove-song-from-queue")]
+    //public async Task RemoveSongFromQueue(int songId)
+    //{
+    //    core.SongsQueue.RemoveAt(songId);
+    //    await core.UpdateSongsAsync();
+    //}
+
+    //[HttpPost("/api/set-volume")]
+    //public Task SetVolume(double volume = .5)
+    //{
+    //    core.Volume = volume;
+    //    return core.SendToAllUsers(new
+    //    {
+    //        actionId = "set_volume",
+    //        volume = volume < 0 ? 0 : volume > 1 ? 1 : volume,
+    //    });
+    //}
+
+    //[HttpPost("/api/next-song")]
+    //public async Task NextSong()
+    //{
+    //    await core.NextSong();
+    //}
+
+    //[HttpPost("/api/restart-song")]
+    //public Task RestartSong()
+    //{
+    //    return core.SendToPlayer(new
+    //    {
+    //        actionId = "restart_song",
+    //    });
+    //}
+
+    //[HttpPost("/api/download")]
+    //public async Task Download(string id)
+    //{
+    //    await youtube.Download(id);
+    //}
+
+    //[HttpPost("/api/add-song-to-queue")]
+    //public async Task AddSongToQueue(string songId, string start = "no")
+    //{
+    //    await core.AddSongToQueue(songId, start);
+    //}
+
+
+    //     [HttpGet("/api/search")]
+    // public ValueTask<List<object>> Search(string query, int count = 10)
+    // {
+    //     return core.Search(query, count);
+    // }
+
 }
 
